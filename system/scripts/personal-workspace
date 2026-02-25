@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Launch personal workspace apps (non-work setup)
+# Apps will be automatically moved by Aerospace rules
+
+echo "Starting personal workspace..."
+
+# Start tmuxinator sessions first (in background)
+# Only start dotfiles and vault, skip work
+if ! tmux has-session -t "dotfiles" 2>/dev/null; then
+    tmuxinator start "dotfiles" --no-attach
+fi
+
+if ! tmux has-session -t "vault" 2>/dev/null; then
+    tmuxinator start "vault" --no-attach
+fi
+
+# Workspace 1: Kitty (tmux will be ready)
+open -a "kitty"
+sleep 0.5
+
+# Workspace 4: Brave
+open -a "Brave Browser"
+sleep 0.5
+
+# Workspace 5: Obsidian
+open -a "Obsidian"
+sleep 0.5
+
+# Workspace 6: Zed
+open -a "Zed"
+sleep 0.5
+
+# Switch to workspace 1 (Kitty/terminal)
+aerospace workspace 1
+
+echo "Personal workspace launched!"

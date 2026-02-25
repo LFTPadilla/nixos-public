@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Launch apps into their designated Aerospace workspaces
+# Apps will be automatically moved by Aerospace rules
+
+echo "Starting workspace apps..."
+
+# Workspace 1: Kitty
+open -a "kitty"
+# ~/.dotfiles/system/scripts/tmux-init.sh
+sleep 0.5
+
+# Workspace 2: VS Code
+open -a "Antigravity"
+sleep 0.5
+
+# Workspace 3: Helium
+open -a "Helium"
+sleep 0.5
+
+# Workspace 4: Brave
+open -a "Brave Browser"
+sleep 0.5
+
+# Workspace 5: Obsidian
+open -a "Obsidian"
+sleep 0.5
+
+# Workspace 6: Zed
+open -a "Zed"
+sleep 0.5
+
+# Switch to workspace 1
+aerospace workspace 1
+
+echo "All apps launched!"

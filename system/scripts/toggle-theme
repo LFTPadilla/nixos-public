@@ -1,0 +1,169 @@
+#!/run/current-system/sw/bin/bash
+
+# Compositor-agnostic theme toggle (GNOME + Hyprland)
+# Part of Felipe's NixOS dotfiles configuration
+#
+# This script toggles between dark and light themes and:
+# - Updates GNOME theme settings when available (gsettings)
+# - Updates Kitty colors live
+# - Updates Rofi theme config
+# - Under Hyprland, also refreshes the background color via swaybg
+#
+# It also stores the current theme in a small config file so that
+# non-GNOME environments (like Hyprland) can still know which
+# theme is active.
+#
+# Usage: toggle-theme or tt
+
+set -euo pipefail
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+THEME_STATE_FILE="${CONFIG_DIR}/system-theme"
+
+ensure_config_dir() {
+  if [ ! -d "$CONFIG_DIR" ]; then
+    mkdir -p "$CONFIG_DIR"
+  fi
+}
+
+read_state_theme() {
+  if [ -f "$THEME_STATE_FILE" ]; then
+    cat "$THEME_STATE_FILE"
+    return 0
+  fi
+  return 1
+}
+
+detect_theme_from_gsettings() {
+  if ! command -v gsettings >/dev/null 2>&1; then
+    return 1
+  fi
+
+  local scheme
+  scheme=$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null | tr -d "'") || return 1
+
+  case "$scheme" in
+    prefer-light) echo "light" ;;
+    prefer-dark) echo "dark" ;;
+    *) return 1 ;;
+  esac
+}
+
+write_state_theme() {
+  ensure_config_dir
+  echo "$1" >"$THEME_STATE_FILE"
+}
+
+apply_gnome_theme() {
+  local mode="$1"
+  if ! command -v gsettings >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [ "$mode" = "light" ]; then
+    gsettings set org.gnome.desktop.interface color-scheme 'prefer-light' 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita' 2>/dev/null || true
+  else
+    gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark' 2>/dev/null || true
+  fi
+}
+
+apply_kitty_theme() {
+  local mode="$1"
+  if ! command -v kitty >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [ "$mode" = "light" ]; then
+    kitty @ set-colors --all --configured ~/.config/kitty/Catppuccin-Latte.conf 2>/dev/null || \
+      kitty @ set-colors --all --configured ~/.config/kitty/"One Half Light.conf" 2>/dev/null || true
+  else
+    kitty @ set-colors --all --configured ~/.config/kitty/Catppuccin-Mocha.conf 2>/dev/null || true
+  fi
+}
+
+apply_rofi_theme_config() {
+  local mode="$1"
+  local rofi_config="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config.rasi"
+
+  mkdir -p "$(dirname "$rofi_config")"
+
+  # If Home Manager manages this file it will be a symlink into the Nix store.
+  # Avoid mutating it, otherwise tools like `sed -i` will replace the symlink
+  # with a regular file and Home Manager activation may fail later.
+  if [ -L "$rofi_config" ]; then
+    return 0
+  fi
+
+  if [ "$mode" = "light" ]; then
+    if [ -f "$rofi_config" ]; then
+      sed -i 's|@theme.*|@theme "dynamic-light"|' "$rofi_config" 2>/dev/null || true
+    else
+      echo '@theme "dynamic-light"' >"$rofi_config"
+    fi
+  else
+    if [ -f "$rofi_config" ]; then
+      sed -i 's|@theme.*|@theme "dynamic-dark"|' "$rofi_config" 2>/dev/null || true
+    else
+      echo '@theme "dynamic-dark"' >"$rofi_config"
+    fi
+  fi
+}
+
+apply_hyprland_background() {
+  local mode="$1"
+
+  # Detect if we are under a Hyprland session
+  if [ -z "${HYPRLAND_INSTANCE_SIGNATURE-}" ] && ! command -v hyprctl >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # Prefer gentle Catppuccin-inspired colors for backgrounds
+  local color_dark="#1e1e2e"
+  local color_light="#eff1f5"
+  local color="$color_dark"
+
+  if [ "$mode" = "light" ]; then
+    color="$color_light"
+  fi
+
+  if command -v swaybg >/dev/null 2>&1; then
+    pkill swaybg 2>/dev/null || true
+    swaybg -c "$color" &
+  fi
+}
+
+current_mode=""
+
+if current_mode=$(read_state_theme 2>/dev/null); then
+  :
+else
+  current_mode=$(detect_theme_from_gsettings 2>/dev/null || echo "dark")
+fi
+
+if [ "$current_mode" = "light" ]; then
+  new_mode="dark"
+else
+  new_mode="light"
+fi
+
+echo "Current theme: ${current_mode:-unknown}"
+
+if [ "$new_mode" = "light" ]; then
+  echo "🌅 Switching to light theme..."
+else
+  echo "🌙 Switching to dark theme..."
+fi
+
+write_state_theme "$new_mode"
+apply_gnome_theme "$new_mode"
+apply_kitty_theme "$new_mode"
+apply_rofi_theme_config "$new_mode"
+apply_hyprland_background "$new_mode"
+
+if [ "$new_mode" = "light" ]; then
+  echo "☀️ Light theme activated!"
+else
+  echo "🌙 Dark theme activated!"
+fi

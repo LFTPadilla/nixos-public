@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+
+# Nix flake rebuild helper (NixOS and nix-darwin)
+# - Formats .nix files (alejandra if available)
+# - Shows a tight diff for .nix changes
+# - Runs appropriate rebuild command based on OS
+# - On success, commits repo with current generation in the message
+
+set -euo pipefail
+
+REPO="/Users/felipe/.dotfiles"
+
+# Detect OS and set appropriate defaults
+if [[ "$(uname)" == "Darwin" ]]; then
+  IS_DARWIN=1
+  HOST="${1:-mac}"
+  LOG_FILE="${TMPDIR:-/tmp}/darwin-switch.$(date +%Y%m%d-%H%M%S).log"
+  # Use absolute path for Darwin (sudo doesn't expand ~)
+  FLAKE="/Users/felipe/.dotfiles#$HOST"
+else
+  IS_DARWIN=0
+  HOST="${1:-default-msi}"
+  LOG_FILE="${TMPDIR:-/tmp}/nixos-switch.$(date +%Y%m%d-%H%M%S).log"
+  FLAKE="$REPO#$HOST"
+fi
+
+# Keep prior behavior from alias (harmless if missing)
+rm -rf "/Users/felipe/.config/rofi/config.rasi" 2>/dev/null || true
+
+pushd "$REPO" >/dev/null
+
+# Format Nix files if a formatter is available
+if command -v alejandra >/dev/null 2>&1; then
+  alejandra . >/dev/null
+elif command -v nixpkgs-fmt >/dev/null 2>&1; then
+  # Format tracked nix files only
+  mapfile -t NIX_FILES < <(git ls-files '*.nix' || true)
+  if ((${#NIX_FILES[@]})); then
+    nixpkgs-fmt "${NIX_FILES[@]}" >/dev/null
+  fi
+fi
+
+# Show focused diff of nix changes before rebuild
+git --no-pager diff -U0 -- '*.nix' || true
+
+if [[ $IS_DARWIN -eq 1 ]]; then
+  echo "Darwin Rebuilding…"
+  # Use eval with single quotes to avoid zsh glob issues with #
+  if ! eval "sudo darwin-rebuild switch --flake '${FLAKE}'" 2>&1 | tee "$LOG_FILE"; then
+    echo
+    echo "Rebuild failed. Showing errors from: $LOG_FILE" >&2
+    # Try to extract common error lines first
+    if ! grep -nEi --color=always '(^error:|^warning: unfree|failed|while evaluating|attribute not found|unknown option|type mismatch|undefined variable|is not a valid value|cannot|does not exist|aborting)' "$LOG_FILE" | tail -n 80; then
+      :
+    fi
+    echo
+    echo "Last 200 log lines:" >&2
+    tail -n 200 "$LOG_FILE" || true
+    exit 1
+  fi
+  # Get current generation label for commit message (Darwin)
+  gen=$(darwin-rebuild --list-generations 2>/dev/null | grep -m1 current || echo "Darwin rebuild")
+else
+  echo "NixOS Rebuilding…"
+  if ! sudo nixos-rebuild switch --flake "$FLAKE" -L 2>&1 | tee "$LOG_FILE"; then
+    echo
+    echo "Rebuild failed. Showing errors from: $LOG_FILE" >&2
+    # Try to extract common error lines first
+    if ! grep -nEi --color=always '(^error:|^warning: unfree|failed|while evaluating|attribute not found|unknown option|type mismatch|undefined variable|is not a valid value|cannot|does not exist|aborting)' "$LOG_FILE" | tail -n 80; then
+      :
+    fi
+    echo
+    echo "Last 200 log lines:" >&2
+    tail -n 200 "$LOG_FILE" || true
+    exit 1
+  fi
+  # Get current generation label for commit message (NixOS)
+  gen=$(sudo nixos-rebuild list-generations | grep -m1 current || true)
+fi
+
+# Commit repo changes automatically (if any)
+# if [[ -n $(git status --porcelain) ]]; then
+#   # Commit tracked changes only (avoid adding new files by accident)
+#   git commit -am "${gen:-NixOS rebuild}" || true
+# fi
+
+popd >/dev/null
+
+echo "Done. Log: $LOG_FILE"

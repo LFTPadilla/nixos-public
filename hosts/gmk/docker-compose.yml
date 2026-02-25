@@ -1,0 +1,15 @@
+services:
+  beszel-agent:
+    image: henrygd/beszel-agent
+    container_name: beszel-agent
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./beszel_agent_data:/var/lib/beszel-agent
+      # - /mnt/disk/.beszel:/extra-filesystems/sda1:ro
+    environment:
+      LISTEN: "45876"
+      KEY: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIENpN6xulJuBW+h+eIL41v6B/+mIfXvoBFBBaZWD5/XL"
+      TOKEN: "802768a6-697d-42fe-830d-eb5881bb5f79"
+      HUB_URL: "http://192.168.5.5:8090"

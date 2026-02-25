@@ -1,0 +1,198 @@
+# Aerospace - Hyprland-style tiling for macOS
+# Config location: ~/.aerospace.toml
+
+# Start at login
+start-at-login = true
+
+# Run JankyBorders on startup
+after-startup-command = [
+    'exec-and-forget /opt/homebrew/bin/borders'
+]
+
+# Normalizations
+enable-normalization-flatten-containers = false
+enable-normalization-opposite-orientation-for-nested-containers = true
+
+# Mouse follows focus
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+
+# Key mapping - use standard macOS Option key
+[key-mapping]
+preset = 'qwerty'
+
+# Gaps (like Hyprland)
+[gaps]
+inner.horizontal = 8
+inner.vertical = 8
+outer.left = 8
+outer.bottom = 8
+outer.top = 8
+outer.right = 8
+
+# Monitor-to-workspace assignment
+# When external monitor is connected:
+# - Workspaces 1-9: NZXTCANVAS27Q (external monitor - main work area)
+# - Workspace 10: Built-in Retina Display (accessible via Option+0)
+[workspace-to-monitor-force-assignment]
+1 = 1   # NZXTCANVAS27Q (external)
+2 = 1
+3 = 1
+4 = 1
+5 = 1
+6 = 1
+7 = 1
+8 = 1
+9 = 1
+10 = 2  # Built-in Retina Display - Option+0
+
+# Main mode keybindings
+[mode.main.binding]
+# Focus windows (like Hyprland $mod + hjkl)
+alt-h = 'focus left'
+alt-j = 'focus down'
+alt-k = 'focus up'
+alt-l = 'focus right'
+
+# Move windows (like Hyprland $mod + Shift + hjkl)
+alt-shift-h = 'move left'
+alt-shift-j = 'move down'
+alt-shift-k = 'move up'
+alt-shift-l = 'move right'
+
+# Resize windows
+alt-ctrl-h = 'resize width -50'
+alt-ctrl-j = 'resize height +50'
+alt-ctrl-k = 'resize height -50'
+alt-ctrl-l = 'resize width +50'
+
+# Layout controls
+alt-f = 'fullscreen'
+alt-shift-f = 'layout floating tiling'
+alt-s = 'layout v_accordion h_accordion'
+alt-e = 'layout tiles horizontal vertical'
+
+# Workspace switching (like Hyprland $mod + 1-9)
+alt-1 = 'workspace 1'
+alt-2 = 'workspace 2'
+alt-3 = 'workspace 3'
+alt-4 = 'workspace 4'
+alt-5 = 'workspace 5'
+alt-6 = 'workspace 6'
+alt-7 = 'workspace 7'
+alt-8 = 'workspace 8'
+alt-9 = 'workspace 9'
+alt-0 = 'workspace 10'
+
+# Move window to workspace AND follow (Option+Shift+number)
+alt-shift-1 = ['move-node-to-workspace 1', 'workspace 1']
+alt-shift-2 = ['move-node-to-workspace 2', 'workspace 2']
+alt-shift-3 = ['move-node-to-workspace 3', 'workspace 3']
+alt-shift-4 = ['move-node-to-workspace 4', 'workspace 4']
+alt-shift-5 = ['move-node-to-workspace 5', 'workspace 5']
+alt-shift-6 = ['move-node-to-workspace 6', 'workspace 6']
+alt-shift-7 = ['move-node-to-workspace 7', 'workspace 7']
+alt-shift-8 = ['move-node-to-workspace 8', 'workspace 8']
+alt-shift-9 = ['move-node-to-workspace 9', 'workspace 9']
+alt-shift-0 = ['move-node-to-workspace 10', 'workspace 10']
+
+# Join with adjacent window (like i3)
+alt-shift-ctrl-h = 'join-with left'
+alt-shift-ctrl-j = 'join-with down'
+alt-shift-ctrl-k = 'join-with up'
+alt-shift-ctrl-l = 'join-with right'
+
+# Navigate workspaces without numbers
+alt-tab = 'workspace-back-and-forth'
+alt-comma = 'workspace prev'
+alt-period = 'workspace next'
+
+# Service mode (for reload, etc.)
+alt-shift-semicolon = 'mode service'
+
+# Quick launchers
+alt-enter = 'exec-and-forget open -na kitty'
+
+# Monitor Focus & Movement
+alt-m = 'focus-monitor next'
+alt-shift-m = 'move-node-to-monitor next'
+
+# Window Management
+alt-equal = 'balance-sizes'
+alt-shift-q = 'close'
+
+[mode.service.binding]
+r = ['reload-config', 'mode main']
+esc = 'mode main'
+
+# ==========================================
+# App-to-Workspace assignments
+# ==========================================
+# 1: Kitty
+[[on-window-detected]]
+if.app-id = 'net.kovidgoyal.kitty'
+run = 'move-node-to-workspace 1'
+
+# 2: VS Code
+[[on-window-detected]]
+if.app-id = 'com.microsoft.VSCode'
+run = 'move-node-to-workspace 2'
+
+# 3: Helium
+[[on-window-detected]]
+if.app-id = 'net.imput.helium'
+run = 'move-node-to-workspace 3'
+
+# 4: Brave
+[[on-window-detected]]
+if.app-id = 'com.brave.Browser'
+run = 'move-node-to-workspace 4'
+
+# 5: Obsidian
+[[on-window-detected]]
+if.app-id = 'md.obsidian'
+run = 'move-node-to-workspace 5'
+
+# 6: Zed
+[[on-window-detected]]
+if.app-id = 'dev.zed.Zed'
+run = 'move-node-to-workspace 6'
+
+# ==========================================
+# Float certain apps
+# ==========================================
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.1password.1password'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.ActivityMonitor'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.archiveutility'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.VolumeController'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.calculator'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'org.pqrs.Karabiner-Elements.Settings'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.raycast.macos'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.finder'
+if.window-title-regex-substring = '(Copy|Move|Delete|Connecting|Info)'
+run = 'layout floating'

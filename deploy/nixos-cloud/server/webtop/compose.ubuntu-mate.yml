@@ -1,0 +1,65 @@
+services:
+  webtop:
+    image: lscr.io/linuxserver/webtop:ubuntu-mate
+    container_name: webtop
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Bogota
+      # Uncomment for NVIDIA GPU
+      # - NVIDIA_VISIBLE_DEVICES=all
+      # - NVIDIA_DRIVER_CAPABILITIES=all
+      # If you want to run Docker CLI inside webtop (see socket/proxy below)
+      # - DOCKER_HOST=tcp://docker-socket-proxy:2375
+    volumes:
+      # Persist webtop config (VNC/noVNC profile, app settings, etc.)
+      - webtop_config:/config
+      # Mount only what you need from the host, not '/'
+      - /home/felipe/Downloads:/home/headless/Downloads
+      - /home/felipe/Projects:/home/headless/Projects
+      # Audio (PulseAudio/PipeWire) — comment out if not needed
+      - /run/user/1000/pulse:/run/user/1000/pulse
+      # Optional: SSH keys for dev workflows (read-only)
+      - /home/felipe/.ssh:/home/headless/.ssh:ro
+    devices:
+      # Hardware acceleration (Intel/AMD). Remove if not applicable.
+      - /dev/dri:/dev/dri
+      # Webcam (optional)
+      - /dev/video0:/dev/video0
+    ports:
+      # If you don’t reverse-proxy with Traefik; otherwise remove these two lines
+      - 3000:3000
+      - 3001:3001
+    shm_size: "1gb"
+    restart: unless-stopped
+    # NVIDIA runtime (only if using NVIDIA)
+    # runtime: nvidia
+    # If you use Traefik, remove ports above and add labels like:
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.webtop.rule=Host(`webtop.example.com`)"
+    #   - "traefik.http.routers.webtop.entrypoints=websecure"
+    #   - "traefik.http.routers.webtop.tls.certresolver=letsencrypt"
+    #   - "traefik.http.services.webtop.loadbalancer.server.port=3000"
+
+  # SAFER docker access from inside webtop (recommended)
+  # docker-socket-proxy:
+  #   image: tecnativa/docker-socket-proxy:latest
+  #   container_name: docker-socket-proxy
+  #   environment:
+  #     - CONTAINERS=1
+  #     - IMAGES=1
+  #     - INFO=1
+  #     - NETWORKS=1
+  #     - VOLUMES=1
+  #     # Enable only what you need; each =1 exposes an endpoint
+  #     # Avoid POST/DELETE capabilities unless necessary
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   restart: unless-stopped
+  #   # If you want webtop to talk to it via TCP (set DOCKER_HOST above), expose:
+  #   # ports:
+  #   #   - "2375:2375"  # or keep internal-only and use a user-defined network
+
+volumes:
+  webtop_config:

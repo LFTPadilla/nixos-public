@@ -1,0 +1,11 @@
+/* Dynamic Rofi Theme - Generated based on system theme */
+/* This file will be imported by the main rofi config */
+
+* {
+    /* These will be overridden by theme-specific configs */
+    bg-color: #1e1e2e;
+    fg-color: #cdd6f4;
+    border-color: #89b4fa;
+    selected-bg: #cba6f7;
+    selected-fg: #1e1e2e;
+}

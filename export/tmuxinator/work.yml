@@ -1,0 +1,27 @@
+# /Users/felipe/.dotfiles/export/tmuxinator/work.yml
+
+name: work
+root: ~/kommit/<%= @args[0] %>/showcase
+
+# Attach to existing session instead of creating new windows
+attach: true
+
+windows:
+  - git: lazygit
+
+  - ai:
+      layout: even-vertical
+      panes:
+        - claude
+        - zsh 
+
+  - docker:
+      layout: main-vertical
+      panes:
+        - zsh # docker compose -f infrastructure/docker/dokploy/docker-compose.yml up
+        - zsh # docker exec -it showcase-web rails c
+        - docker ps -a
+
+  - editor:
+      panes:
+        - yazi

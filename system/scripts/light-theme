@@ -1,0 +1,51 @@
+#!/run/current-system/sw/bin/bash
+
+# Light Theme Switcher for GNOME
+# Part of Felipe's NixOS dotfiles configuration
+#
+# This script switches the GNOME desktop environment to light theme
+# 
+# Setup Instructions:
+# 1. Script is automatically included in shell aliases via configuration.nix
+# 2. For immediate access before system rebuild, create symbolic link:
+#    ln -sf ~/.dotfiles/system/scripts/light-theme ~/.local/bin/light-theme
+# 3. Ensure ~/.local/bin is in your PATH (should be automatic)
+#
+# Usage: light-theme
+
+# Switch to light theme
+echo "Switching to light theme..."
+
+# Persist a simple theme flag for non-GNOME tools (Hyprland/rofi wrapper/etc.)
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+mkdir -p "$CONFIG_DIR"
+echo "light" >"$CONFIG_DIR/system-theme"
+
+# Set GNOME interface to prefer light theme
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-light'
+
+# Also set GTK theme to light variant
+gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita'
+
+# Switch Kitty terminal to light theme (if running)
+if command -v kitty >/dev/null 2>&1; then
+    # Try to change theme for all running kitty instances
+    kitty @ set-colors --all --configured ~/.config/kitty/Catppuccin-Latte.conf 2>/dev/null || \
+    kitty @ set-colors --all --configured ~/.config/kitty/"One Half Light.conf" 2>/dev/null || true
+fi
+
+# Update Rofi theme configuration for light theme
+ROFI_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config.rasi"
+if [ -L "$ROFI_CONFIG" ]; then
+    # Home Manager manages this file via a Nix store symlink; don't mutate it.
+    :
+elif [ -f "$ROFI_CONFIG" ]; then
+    # Update existing config
+    sed -i 's|@theme.*|@theme "dynamic-light"|' "$ROFI_CONFIG" 2>/dev/null || true
+else
+    # Create config if it doesn't exist
+    mkdir -p "$(dirname "$ROFI_CONFIG")"
+    echo '@theme "dynamic-light"' > "$ROFI_CONFIG"
+fi
+
+echo "☀️ Light theme activated!"

@@ -1,0 +1,11 @@
+name: nixos-cloud
+runtime:
+  name: python
+  options:
+    toolchain: pip
+    virtualenv: venv
+description: nixos-cloud infrastructure (Pulumi)
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: aws-python

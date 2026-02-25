@@ -1,0 +1,50 @@
+#!/run/current-system/sw/bin/bash
+
+# Dark Theme Switcher for GNOME
+# Part of Felipe's NixOS dotfiles configuration
+#
+# This script switches the GNOME desktop environment to dark theme
+# 
+# Setup Instructions:
+# 1. Script is automatically included in shell aliases via configuration.nix
+# 2. For immediate access before system rebuild, create symbolic link:
+#    ln -sf ~/.dotfiles/system/scripts/dark-theme ~/.local/bin/dark-theme
+# 3. Ensure ~/.local/bin is in your PATH (should be automatic)
+#
+# Usage: dark-theme
+
+# Switch to dark theme
+echo "Switching to dark theme..."
+
+# Persist a simple theme flag for non-GNOME tools (Hyprland/rofi wrapper/etc.)
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+mkdir -p "$CONFIG_DIR"
+echo "dark" >"$CONFIG_DIR/system-theme"
+
+# Set GNOME interface to prefer dark theme
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+
+# Also set GTK theme to dark variant if available
+gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
+
+# Switch Kitty terminal to dark theme (if running)
+if command -v kitty >/dev/null 2>&1; then
+    # Try to change theme for all running kitty instances
+    kitty @ set-colors --all --configured ~/.config/kitty/Catppuccin-Mocha.conf 2>/dev/null || true
+fi
+
+# Update Rofi theme configuration for dark theme
+ROFI_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config.rasi"
+if [ -L "$ROFI_CONFIG" ]; then
+    # Home Manager manages this file via a Nix store symlink; don't mutate it.
+    :
+elif [ -f "$ROFI_CONFIG" ]; then
+    # Update existing config
+    sed -i 's|@theme.*|@theme "dynamic-dark"|' "$ROFI_CONFIG" 2>/dev/null || true
+else
+    # Create config if it doesn't exist
+    mkdir -p "$(dirname "$ROFI_CONFIG")"
+    echo '@theme "dynamic-dark"' > "$ROFI_CONFIG"
+fi
+
+echo "✅ Dark theme activated!"

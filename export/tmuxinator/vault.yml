@@ -1,0 +1,29 @@
+# /Users/felipe/.dotfiles/export/tmuxinator/vault.yml
+<% @args ||= [] %>
+
+name: vault
+root: ~/Nextcloud/Obsidian Vault
+
+# Attach to existing session instead of creating new windows
+attach: true
+
+windows:
+  - git: lazygit
+
+  - ai:
+      layout: even-vertical
+      panes:
+        - ssh -i ~/.ssh/homeserver felipe@192.168.5.11
+        - claude --continue
+
+  - homeserver:
+      layout: even-horizontal
+      panes:
+        - ssh -i ~/.ssh/homeserver felipe@192.168.5.11
+        - ssh -i ~/.ssh/homeserver felipe@192.168.5.11
+
+  - editor:
+      layout: even-vertical
+      panes:
+        - nvim .
+        - zsh

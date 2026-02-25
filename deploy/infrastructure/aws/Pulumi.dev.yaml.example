@@ -1,0 +1,14 @@
+# Example Pulumi development configuration
+# Copy this to Pulumi.dev.yaml and customize with YOUR settings
+# This file is IGNORED by git to prevent credential leakage
+
+config:
+  aws:region: us-east-1
+  aws:profile: your-profile-name
+  nixos-cloud:region: us-east-1
+  nixos-cloud:ami_ec2: ami-xxxxxxxxx  # Replace with your AMI ID
+  nixos-cloud:availability_zone: us-east-1a
+  nixos-cloud:allowed_cidr: YOUR_IP_HERE/32  # Your IP address in CIDR notation
+  key_name: your-key-name-here  # Your AWS key pair name
+
+# Never commit actual values! This file will be gitignored.

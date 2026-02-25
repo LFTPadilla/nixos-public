@@ -1,0 +1,32 @@
+users/felipe/homeassistant/hacompanion.toml
+pyscript-env
+.venv
+.qodo
+
+# Pulumi environment configs (contain AWS credentials/IPs)
+Pulumi.dev.yaml
+Pulumi.*.yaml
+!Pulumi.yaml
+
+# Home Assistant - never commit real config
+users/felipe/homeassistant/hacompanion.toml
+
+# Private configurations
+*.local.toml
+*.private.toml
+**/secrets/
+**/*.secret
+**/*.key
+**/*.pem
+**/__pycache__/
+deploy/infrastructure/aws/venv/*
+deploy/infrastructure/aws/.venv/*
+
+# Private configuration files
+.crush/
+.aider*
+.plan.md
+.ipynb_checkpoints/
+node_modules/
+package-lock.json
+package.json

@@ -1,0 +1,16 @@
+---
+services:
+  webtop:
+    image: lscr.io/linuxserver/webtop:ubuntu-kde
+    container_name: webtop
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - /home/felipe/server/ubuntu:/config
+    ports:
+      - 3000:3000
+      - 3002:3001
+    shm_size: "1gb"
+    restart: unless-stopped
