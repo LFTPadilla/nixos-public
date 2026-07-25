@@ -13,7 +13,7 @@ with pkgs; [
   alejandra # Nixos text formatter
   insomnia # API testing tool
   fabric-ai # AI CLI tool
-  nur.repos.charmbracelet.crush # AI coding agent
+  crush # AI coding agent (was nur.repos.charmbracelet.crush; now in nixpkgs)
   aider-chat # AI pair programming assistant
   doppler # Environment management
   infisical # Centralized secret management (ai-env backend)

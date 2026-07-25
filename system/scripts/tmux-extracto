@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if ! HISTORY=$(tmux capture-pane -J -S -10000 -p 2>/dev/null); then
+  tmux display-message "Unable to capture pane history"; exit 0; fi
+command -v fzf >/dev/null 2>&1 || { tmux display-message "fzf not installed"; exit 0; }
+
+urls=$(printf '%s\n' "$HISTORY" | grep -Eo 'https?://[^[:space:]]+' | sed -E 's/[)\]\.,;:!\?"]+$//' | sed 's/^/URL\t/')
+emails=$(printf '%s\n' "$HISTORY" | grep -Eo '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' | sed 's/^/EMAIL\t/')
+shas=$(printf '%s\n' "$HISTORY" | grep -Eo '\b[0-9a-f]{7,40}\b' | sed 's/^/SHA\t/')
+paths=$(printf '%s\n' "$HISTORY" | grep -Eo '(/[^[:space:]]+)' | sed 's/^/PATH\t/')
+
+items=$(printf '%s\n%s\n%s\n%s\n' "$urls" "$emails" "$shas" "$paths" | sed '/^$/d' | sort -u)
+[[ -z "$items" ]] && { tmux display-message "No items found"; exit 0; }
+
+sel=$(printf '%s\n' "$items" | fzf --height 40% --border --with-nth=1,2 --delimiter='\t' --prompt='Extracto> ' || true)
+[[ -z "$sel" ]] && exit 0
+type=$(printf '%s' "$sel" | awk -F '\t' '{print $1}')
+val=$(printf '%s' "$sel" | cut -f2-)
+
+case "$type" in
+  URL)
+    if command -v xdg-open >/dev/null 2>&1; then nohup xdg-open "$val" >/dev/null 2>&1 &
+    elif command -v sensible-browser >/dev/null 2>&1; then nohup sensible-browser "$val" >/dev/null 2>&1 &
+    elif command -v open >/dev/null 2>&1; then nohup open "$val" >/dev/null 2>&1 &
+    else printf '%s' "$val" | "$HOME/.local/bin/tmux-copy"; fi
+    ;;
+  EMAIL|SHA|PATH)
+    printf '%s' "$val" | "$HOME/.local/bin/tmux-copy"
+    tmux display-message "Copied to clipboard"
+    ;;
+esac

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+cat > "$tmp"
+
+if [[ -n "${TMUX:-}" ]] && command -v tmux >/dev/null 2>&1; then
+  tmux load-buffer "$tmp" 2>/dev/null || true
+fi
+
+copied=0
+if command -v wl-copy >/dev/null 2>&1; then
+  wl-copy < "$tmp" && copied=1
+elif command -v xclip >/dev/null 2>&1; then
+  xclip -selection clipboard -in < "$tmp" && copied=1
+elif command -v xsel >/dev/null 2>&1; then
+  xsel --clipboard --input < "$tmp" && copied=1
+elif command -v pbcopy >/dev/null 2>&1; then
+  pbcopy < "$tmp" && copied=1
+fi
+
+if [[ -n "${TMUX:-}" ]]; then
+  if [[ "$copied" -eq 1 ]]; then
+    tmux display-message "Copied to clipboard and tmux buffer" 2>/dev/null || true
+  else
+    tmux display-message "Copied to tmux buffer; no system clipboard backend" 2>/dev/null || true
+  fi
+fi
+
+exit 0

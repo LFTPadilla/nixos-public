@@ -7,7 +7,7 @@ This document outlines all security & cleanup steps taken before publishing this
 ### 1. **Gateway Password** ✅
 - **File:** `openclaw.json` (not in repo)
 - **Action:** Removed from repository
-- **Setup:** See `GATEWAY_PASSWORD_SETUP.md`
+- **Setup:** See [gateway-password-setup.md](gateway-password-setup.md)
 - **Why:** Credentials should never be committed to Git
 
 ### 2. **Pulumi AWS Configuration** ✅
@@ -16,11 +16,12 @@ This document outlines all security & cleanup steps taken before publishing this
 - **Why:** Contains AWS profile names, IP CIDR blocks, AMI IDs
 - **Setup:** Use `Pulumi.dev.yaml.example` as template
 
-### 3. **Private host mappings** ✅
+### 3. **Encrypted Secrets (git-crypt)** ✅
 - **File:** `system/private-hosts.nix`
-- **Status:** Ignored and not tracked
-- **Template:** `system/example.private-hosts.nix`
-- **Contains locally:** Private IP mappings and local hostnames
+- **Status:** Already encrypted via `git-crypt`
+- **Contains:** Private IP mappings, local hostnames
+- **Access:** Requires encryption key to decrypt
+- **Public View:** Shows as binary/encrypted data
 
 ### 4. **Home Assistant Configuration** ✅
 - **File:** `users/felipe/homeassistant/hacompanion.example.toml`
@@ -35,19 +36,23 @@ This document outlines all security & cleanup steps taken before publishing this
   - No exposed API keys
   - No private Docker registry credentials
 
-## 🔒 Local-only files
+## 🔒 Still Protected (Encrypted)
 
 ```
-system/private-hosts.nix          [.gitignore ✓]
+system/private-hosts.nix          [git-crypt ✓]
 ```
 
-Add other machine-specific files to `.gitignore` and commit only sanitized
-`.example` templates.
+Add to this list as needed:
+```bash
+# Encrypt additional files
+git-crypt add-user KEYID FILE
+echo "new-file filter=git-crypt diff=git-crypt" >> .gitattributes
+```
 
 ## 📋 Files to Review Before Publishing
 
 - [ ] `deploy/infrastructure/aws/Pulumi.yaml` - verify no real AWS IDs
-- [ ] `hosts/*/configuration.nix` - check for hardcoded private IPs/hostnames
+- [ ] `hosts/*/configuration.nix` - check for hardcoded IPs/hostnames
 - [ ] `deploy/iam-policy.json` - verify it's sanitized/example
 - [ ] `deploy/iam-setup-guide.md` - review for real account details
 - [ ] All `docker-compose.yml` files - no exposed secrets
@@ -76,8 +81,8 @@ git ls-files | grep -E "(password|secret|key|token|cred)"
 # Check for large files
 git rev-list --all --objects --disk-usage | sort -k2 -rn | head -20
 
-# Verify local-only host mappings are not tracked
-git ls-files --error-unmatch system/private-hosts.nix && exit 1 || true
+# Verify git-crypt status
+git-crypt ls-files
 ```
 
 ### After Publish:
@@ -91,10 +96,20 @@ git tag -a v1.0 -m "Initial public release"
 # - How to customize for your system
 ```
 
+## 🔐 Git-Crypt Setup for Collaborators
+
+```bash
+# Add collaborator's GPG key
+git-crypt add-user YOUR_KEYID
+
+# Existing users unlock with:
+git-crypt unlock /path/to/keyfile
+```
+
 ## ⚠️ Security Best Practices
 
 1. **Never commit secrets** - use `.gitignore` + environment variables
-2. **Keep machine-specific data untracked** and publish sanitized examples
+2. **Use `git-crypt` for configs** that must be in repo but are sensitive
 3. **Rotate credentials** after any accidental commit
 4. **Review diffs carefully** before pushing: `git diff HEAD~1`
 5. **Use pre-commit hooks** to catch secrets:
@@ -105,10 +120,11 @@ git tag -a v1.0 -m "Initial public release"
 
 ## 📚 References
 
+- [git-crypt docs](https://github.com/AGWA/git-crypt)
 - [Pre-commit framework](https://pre-commit.com/)
 - [OWASP Secret Management](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html)
 
 ---
 
-**Last updated:** 2026-07-25
+**Last updated:** 2026-02-24
 **Status:** ✅ Ready for publication (pending final review)

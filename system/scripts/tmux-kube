@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v kubectl >/dev/null 2>&1; then
+  exit 0
+fi
+
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/tmux-status"
+mkdir -p "$cache_dir"
+kubeconfig_key="$(printf '%s' "${KUBECONFIG:-$HOME/.kube/config}" | sha1sum | awk '{print $1}')"
+cache="$cache_dir/kube-$kubeconfig_key.txt"
+interval="${TMUX_KUBE_STATUS_INTERVAL:-30}"
+now="$(date +%s)"
+mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
+
+if [[ -s "$cache" ]]; then
+  last="$(mtime "$cache")"
+  if [[ $((now - last)) -lt "$interval" ]]; then
+    cat "$cache"
+    exit 0
+  fi
+fi
+
+if command -v timeout >/dev/null 2>&1; then
+  ctx=$(timeout 1s kubectl config current-context 2>/dev/null || true)
+else
+  ctx=$(kubectl config current-context 2>/dev/null || true)
+fi
+[[ -z "$ctx" ]] && { : > "$cache"; exit 0; }
+
+if command -v timeout >/dev/null 2>&1; then
+  ns=$(timeout 1s kubectl config view --minify -o jsonpath='{.contexts[0].context.namespace}' 2>/dev/null || true)
+else
+  ns=$(kubectl config view --minify -o jsonpath='{.contexts[0].context.namespace}' 2>/dev/null || true)
+fi
+[[ -z "$ns" ]] && ns=default
+
+out="$(printf ' ⎈ %s/%s ' "$ctx" "$ns")"
+printf '%s' "$out" > "$cache"
+printf '%s' "$out"

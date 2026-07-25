@@ -7,7 +7,7 @@
 ^export/ccr-config\.json$
 ^export/hermes/
 ^export/harnesses/ai-env
-^export/tmuxinator/(work|komp|vault)\.yml$
+^export/tmuxinator/(work|komp|vault|blackrack)\.yml$
 ^system/scripts/(ai-env|ai-env-source\.sh|ai-secrets-audit|mcp-sync|vault-skills-sync|tmux-auto-ssh\.sh|tmux-sync-hosts\.sh)$
 ^users/felipe/home-modules/(session|ssh)\.nix$
 ^users/felipe/homeassistant/(meeting-monitor|com\.devpipe\.meeting-monitor)

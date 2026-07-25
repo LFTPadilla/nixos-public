@@ -3,8 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    # Pin a stable nixpkgs for selectively sourcing known-good packages
-    nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-24.05";
 
     home-manager = {
       url = "github:nix-community/home-manager/master";
@@ -28,20 +26,11 @@
       flake = false;
     };
 
-    claude-desktop = {
-      url = "github:k3d3/claude-desktop-linux-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    nur.url = "github:nix-community/NUR";
-
     # Deployment / installer helpers
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    nixos-facter-modules.url = "github:numtide/nixos-facter-modules";
   };
 
   outputs = {
@@ -52,13 +41,18 @@
     nix-homebrew,
     homebrew-core,
     homebrew-cask,
-    claude-desktop,
-    nur,
     disko,
-    nixos-facter-modules,
     ...
   } @ inputs: let
     hmStateVersion = "24.05";
+
+    # Shared by the NixOS hosts. Previously an inline module repeated per host,
+    # so any new nixpkgs-level setting meant several edits.
+    nixosDefaults = {
+      nixpkgs.config.allowUnfree = true;
+      # bitwarden-desktop currently pins electron 39, flagged EOL upstream.
+      nixpkgs.config.permittedInsecurePackages = ["electron-39.8.10"];
+    };
   in rec {
     # ============================================
     # home-manager standalone (Nix-on-Ubuntu)
@@ -74,7 +68,9 @@
       ];
     };
 
+    # Compatibility aliases; neither has host-specific configuration.
     homeConfigurations.ubuntu-cli = homeConfigurations.ubuntu-dev;
+    homeConfigurations.ubuntu-24 = homeConfigurations.ubuntu-dev;
     nixosConfigurations.default-msi = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = {inherit inputs hmStateVersion;};
@@ -82,9 +78,7 @@
         ./hosts/main/configuration.nix
         ./hosts/main/msi.nix
         home-manager.nixosModules.default
-        {
-          nixpkgs.overlays = [nur.overlays.default];
-        }
+        nixosDefaults
       ];
     };
 
@@ -95,9 +89,7 @@
         ./hosts/main/configuration.nix
         ./hosts/main/hp.nix
         home-manager.nixosModules.default
-        {
-          nixpkgs.overlays = [nur.overlays.default];
-        }
+        nixosDefaults
       ];
     };
 

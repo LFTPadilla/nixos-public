@@ -135,6 +135,6 @@ The status bar uses the **Catppuccin Mocha** theme with powerline separators.
 All theme settings are in `users/felipe/home-modules/shell.nix` under the `@catppuccin_*` variables. The plugin auto-generates the status bar styling - avoid manually setting `status-style`, `window-status-format`, etc. as they override the plugin.
 
 ## Requirements
-- `tmux` ≥ 3.2, `fzf`, `wl-copy` or `xclip`; optional: `git`, `btop`, `yazi`, `zoxide`, `neofetch`.
+- `tmux` ≥ 3.2, `fzf`, `wl-copy` or `xclip`; optional: `git`, `btop`, `yazi`, `zoxide`, `fastfetch`.
 - **TPM**: Tmux Plugin Manager for plugin support
 - **Nerd Font**: JetBrains Mono Nerd Font for powerline separators

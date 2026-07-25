@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode="${1:---print}"
+
+read_clipboard() {
+  if command -v wl-paste >/dev/null 2>&1; then
+    wl-paste --no-newline 2>/dev/null || wl-paste 2>/dev/null
+  elif command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard -out 2>/dev/null
+  elif command -v xsel >/dev/null 2>&1; then
+    xsel --clipboard --output 2>/dev/null
+  elif command -v pbpaste >/dev/null 2>&1; then
+    pbpaste 2>/dev/null
+  else
+    return 1
+  fi
+}
+
+text="$(read_clipboard || true)"
+if [[ -z "$text" && -n "${TMUX:-}" ]] && command -v tmux >/dev/null 2>&1; then
+  text="$(tmux save-buffer - 2>/dev/null || true)"
+fi
+
+case "$mode" in
+  --print)
+    printf '%s' "$text"
+    ;;
+  --tmux-send)
+    if [[ -z "$text" ]]; then
+      tmux display-message "Clipboard and tmux buffer are empty" 2>/dev/null || true
+      exit 0
+    fi
+    tmp="$(mktemp)"
+    trap 'rm -f "$tmp"' EXIT
+    printf '%s' "$text" > "$tmp"
+    tmux load-buffer "$tmp"
+    tmux paste-buffer
+    ;;
+  *)
+    echo "Usage: tmux-paste [--print|--tmux-send]" >&2
+    exit 2
+    ;;
+esac

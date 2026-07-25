@@ -1,16 +1,11 @@
 {lib, ...}: {
+  # The commented-out dunst/fonts/gtk/i3/picom/polybar/xorg imports were removed:
+  # none of those files exist, so they could never be uncommented as-is.
   imports = [
-    # ./dunst.nix
-    # ./fonts.nix
-    # ./gtk.nix
-    # ./i3.nix
-    # ./picom.nix
-    # ./polybar.nix
     ./waybar.nix
     ./rofi.nix
     ./swaync.nix
     ./sunshine.nix
-    # ./xorg.nix
   ];
 
   options = {
@@ -45,10 +40,6 @@
       type = lib.types.str;
       description = "Command to use for quick calculations";
     };
-    toggleBarCommand = lib.mkOption {
-      type = lib.types.str;
-      description = "Command to hide and show the status bar.";
-    };
     powerCommand = lib.mkOption {
       type = lib.types.str;
       description = "Command to use for power options menu";
@@ -57,15 +48,6 @@
       type = lib.types.nullOr lib.types.str;
       description = "Path to executable for terminal emulator program.";
       default = null;
-    };
-    terminalLaunchCommand = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      description = "Command for using the terminal to launch a new window with a program.";
-      default = null;
-    };
-    wallpaper = lib.mkOption {
-      type = lib.types.path;
-      description = "Wallpaper background image file";
     };
   };
 }

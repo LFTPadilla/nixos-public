@@ -9,7 +9,8 @@
     man-pages # extra man pages
     ncdu # disk space
     tldr
-    tmuxinator
+    # tmuxinator comes from packages/dev-cli.nix, which overrides it to 3.4.1
+    # for tmux 3.7b support. Two copies would collide in one profile.
 
     ## Tools / useful cli
     aoc-cli # Advent of Code command-line tool
@@ -85,6 +86,6 @@
     cliphist # Wayland clipboard history manager
 
     winetricks
-    wineWowPackages.waylandFull
+    wineWow64Packages.waylandFull
   ];
 }

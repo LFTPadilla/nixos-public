@@ -2,14 +2,13 @@
 # User-specific packages managed by Home Manager
 with pkgs; [
   # Terminal utilities
-  neofetch
+  # fastfetch: packages/dev-cli.nix
   nnn
 
   # Archives
   zip
   xz
-  unzip
-  p7zip
+  p7zip # unzip: packages/base-cli.nix
 
   # Modern CLI utilities
   eza # A modern replacement for 'ls'

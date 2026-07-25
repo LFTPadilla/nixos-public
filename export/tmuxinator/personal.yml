@@ -1,17 +1,21 @@
 name: personal
-root: ~/.dotfiles
+root: ~
 
-startup_window: editor
+on_project_start:
+  - mkdir -p ~/.hermes/hermes-agent
+
+# Reuse existing session: tmuxinator start personal || tmux attach -t personal
+startup_window: .dot
 
 windows:
-  - editor:
+  - .dot:
+      root: ~/.dotfiles
       layout: even-horizontal
       panes:
-        - nvim .
+        - ai-env opencode || exec zsh
         - zsh
-  - git:
+
+  - hermes:
+      root: ~/.hermes/hermes-agent
       panes:
-        - lazygit
-  - shell:
-      panes:
-        - zsh
+        - hermes profile use default && hermes

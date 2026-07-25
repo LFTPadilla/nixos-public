@@ -32,6 +32,7 @@
   '';
 in {
   # Import shared shell configuration
+  # session.nix is private-only and excluded from this repository.
   imports = [
     ../../users/felipe/home-modules/shell.nix
     ../../users/felipe/home-modules/git.nix
@@ -104,6 +105,23 @@ in {
           UseKeychain = "yes"; # Store passphrase in macOS Keychain
           # IdentityAgent is NOT set - use system SSH agent instead of 1Password
         };
+      };
+      "ec2-swarm" = {
+        hostname = "23.23.253.44";
+        user = "ubuntu";
+        identityFile = ["~/.ssh/showcase-staging.pem"];
+      };
+      # Main workstation (MSI 64GB) via Tailscale
+      "workstation" = {
+        hostname = "100.72.202.102"; # MSI Tailscale IP
+        user = "felipe";
+        forwardAgent = true;
+      };
+      # Main workstation via local network
+      "workstation-local" = {
+        hostname = "192.165.5.25"; # MSI local network IP
+        user = "felipe";
+        forwardAgent = true;
       };
     };
   };
@@ -443,9 +461,7 @@ in {
   home.file.".aerospace.toml".source =
     config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/export/aerospace.toml";
 
-  # Tmuxinator configurations
-  xdg.configFile."tmuxinator/personal.yml".source =
-    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/export/tmuxinator/personal.yml";
+  # Tmuxinator projects are linked by users/felipe/home-modules/shell.nix.
 
   # FZF with Catppuccin colors
   programs.fzf.enable = true;

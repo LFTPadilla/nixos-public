@@ -7,9 +7,12 @@
   # Gitleaks — block commits containing secrets before they hit history
   home.packages = [pkgs.gitleaks];
 
-  # Global git template with pre-commit hook
+  # Global git template with pre-commit hook.
   # All new repos automatically get the hook via init.templateDir.
   # Existing repos can run: git init (safe, re-inits hooks)
+  #
+  # Kept inline rather than in system/scripts/: git copies this file into every
+  # new repository's .git/hooks/, so it has to be self-contained.
   home.file.".git-templates/hooks/pre-commit" = {
     executable = true;
     text = ''
@@ -19,16 +22,29 @@
 
       set -e
 
+      # Nix formatting is a dotfiles concern, and this hook is installed into
+      # every repo — so only check it here. Excludes mirror CI: private-hosts.nix
+      # is git-crypt ciphertext and hardware-configuration.nix is generated.
+      if [ "$(git rev-parse --show-toplevel 2>/dev/null)" = "$HOME/.dotfiles" ] &&
+        command -v alejandra >/dev/null 2>&1; then
+        unformatted=$(
+          git ls-files '*.nix' |
+            grep -v -e '^system/private-hosts\.nix$' \
+              -e 'hardware-configuration\.nix$' |
+            xargs alejandra --check 2>&1 |
+            grep '^Requires formatting' || true
+        )
+        if [ -n "$unformatted" ]; then
+          echo "❌ alejandra: nix files are not formatted:"
+          echo "$unformatted"
+          echo "   Run: alejandra ."
+          exit 1
+        fi
+      fi
+
       if ! command -v gitleaks >/dev/null 2>&1; then
         echo "warning: gitleaks not found in PATH; skipping secret scan"
         exit 0
-      fi
-
-      if command -v alejandra >/dev/null 2>&1; then
-        if ! alejandra --check . >/dev/null 2>&1; then
-          echo "❌ alejandra: nix files are not formatted. Run 'alejandra .'"
-          exit 1
-        fi
       fi
 
       echo "🔒 gitleaks: scanning staged changes for secrets..."

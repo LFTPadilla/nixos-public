@@ -1,4 +1,18 @@
-{pkgs, ...}: {
+{pkgs, ...}: let
+  # nixpkgs at the current lock still packages tmuxinator 3.3.7, whose tmux
+  # version allow-list stops at 3.6a. 3.4.1 adds support through tmux 3.7b.
+  tmuxinator_3_4_1 = pkgs.tmuxinator.overrideAttrs (_: rec {
+    version = "3.4.1";
+    name = "tmuxinator-${version}";
+    src = pkgs.fetchurl {
+      url = "https://rubygems.org/downloads/tmuxinator-${version}.gem";
+      hash = "sha256-2BZgu3vybhpoScScq42yr80DYI343vqlQVQv2AOG48I=";
+    };
+    postInstall = ''
+      installShellCompletion $GEM_HOME/gems/tmuxinator-${version}/completion/tmuxinator.{bash,zsh,fish}
+    '';
+  });
+in {
   imports = [./base-cli.nix];
 
   home.packages = with pkgs; [
@@ -19,7 +33,7 @@
     go
     less
     lua-language-server
-    neofetch
+    fastfetch
     nil
     nixd
     nodejs_22
@@ -28,7 +42,7 @@
     satty
     starship
     tmux
-    tmuxinator
+    tmuxinator_3_4_1
     uv
     xclip
     yazi

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SESSION=$(tmux display-message -p '#{session_name}')
+
+mapfile -t SSH_PANES < <(
+  tmux list-panes -a -s -t "$SESSION" \
+    -F '#{session_name}:#{window_index}.#{pane_index} #{pane_current_command}' \
+    2>/dev/null | awk '$2=="ssh"{print $1}'
+)
+
+if [[ ${#SSH_PANES[@]} -eq 0 ]]; then
+  tmux display-message "No SSH panes in session '$SESSION'"
+  exit 0
+fi
+
+cmd=$(tmux display-popup -E \
+  -T " Broadcast → ${#SSH_PANES[@]} SSH panes " \
+  -w 70% -h 8 \
+  "printf 'Command: '; read -r c; printf '%s' \"\$c\"" 2>/dev/null || true)
+
+[[ -z "${cmd:-}" ]] && exit 0
+
+for pane in "${SSH_PANES[@]}"; do
+  tmux send-keys -t "$pane" "$cmd" Enter
+done
+
+tmux display-message "Broadcast to ${#SSH_PANES[@]} panes: $cmd"

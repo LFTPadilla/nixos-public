@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+last="$HOME/.tmux/resurrect/last"
+if [[ ! -e "$last" ]]; then
+  echo "No hay snapshot en ~/.tmux/resurrect/last." >&2
+  exit 1
+fi
+
+target=$(readlink -f "$last" 2>/dev/null || printf '%s' "$last")
+echo "$target"
+stat -c 'modificado: %y' "$target" 2>/dev/null || true
+printf 'sesiones: '; awk -F '\t' '$1=="window"{print $2}' "$target" | sort -u | tr '\n' ' '; echo
+echo "ventanas: $(grep -c $'^window\t' "$target" 2>/dev/null || true)"
+echo "panes: $(grep -c $'^pane\t' "$target" 2>/dev/null || true)"
+echo "procesos activos: $(awk -F '\t' '$1=="pane" && $11 != ":" && $11 != "" { count++ } END { print count + 0 }' "$target" 2>/dev/null || true)"
+[[ -s "$HOME/.tmux/resurrect/pane_contents.tar.gz" ]] && echo "contenido de panes: $HOME/.tmux/resurrect/pane_contents.tar.gz"
+agents="$HOME/.tmux/resurrect/agent_sessions.tsv"
+if [[ -s "$agents" ]]; then
+  echo "agentes con resume (codex): $(grep -c . "$agents" 2>/dev/null || echo 0)"
+  awk -F '\t' '{printf "  %s  %s  %s\n", $1, $4, $5}' "$agents"
+else
+  echo "agentes con resume: 0"
+fi

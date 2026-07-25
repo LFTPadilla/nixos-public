@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+"$HOME/.local/bin/tmux-restore"
+session=$(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep -v '^restore-bootstrap$' | head -n1 || true)
+if [[ -z "${session:-}" ]]; then
+  session=$(tmux list-sessions -F '#{session_name}' 2>/dev/null | head -n1 || true)
+fi
+[[ -n "${session:-}" ]] || exit 0
+exec tmux attach-session -t "$session"

@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Run via ~/.local/bin/tmux-save, which exports the resurrect store path.
+if [[ -z "${TMUX_RESURRECT_DIR:-}" ]]; then
+  echo "tmux-save: TMUX_RESURRECT_DIR unset; run ~/.local/bin/tmux-save instead." >&2
+  exit 2
+fi
+
+mode="full"
+case "${1:-}" in
+  --light|--timer) mode="light" ;;
+  --full|"") mode="full" ;;
+  --help|-h)
+    printf '%s\n' \
+      "Usage: tmux-save [--full|--light]" \
+      "" \
+      "--full   Capture layout, processes, and full pane contents. Default for manual saves." \
+      "--light  Capture layout/processes only. Intended for periodic timers."
+    exit 0
+    ;;
+  *) echo "tmux-save: unknown option: $1" >&2; exit 2 ;;
+esac
+
+if ! tmux has-session 2>/dev/null; then
+  echo "No hay sesiones de tmux abiertas para guardar." >&2
+  exit 1
+fi
+
+if [[ "$mode" == "light" ]]; then
+  tmux set-option -gq @resurrect-capture-pane-contents 'off'
+else
+  tmux set-option -gq @resurrect-capture-pane-contents 'on'
+  tmux set-option -gq @resurrect-pane-contents-area 'full'
+fi
+tmux set-option -gq @resurrect-processes 'ssh mosh-client psql mysql sqlite3 k9s lazygit btop htop yazi ranger lf "~kubectl" "~journalctl" "~nix develop" "~claude" "~codex" "~gemini" "~qwen" "~npm" "~yarn" "~pnpm" "~bun" "~node" "~python"'
+
+tmux run-shell "$TMUX_RESURRECT_DIR/scripts/save.sh"
+sleep 1
+
+# captura session-ids de agentes (codex) por pane para poder resumirlos
+"$HOME/.local/bin/tmux-capture-agents" 2>/dev/null || true
+
+last="$HOME/.tmux/resurrect/last"
+if [[ -e "$last" ]]; then
+  target=$(readlink -f "$last" 2>/dev/null || printf '%s' "$last")
+  panes=$(grep -c $'^pane\t' "$target" 2>/dev/null || true)
+  windows=$(grep -c $'^window\t' "$target" 2>/dev/null || true)
+  commands=$(awk -F '\t' '$1=="pane" && $11 != ":" && $11 != "" { count++ } END { print count + 0 }' "$target" 2>/dev/null || true)
+  contents="no"
+  if [[ "$mode" == "light" ]]; then
+    contents="skipped"
+  elif [[ -s "$HOME/.tmux/resurrect/pane_contents.tar.gz" ]]; then
+    contents="yes"
+  fi
+  echo "tmux guardado ($mode): $target"
+  echo "capturado: ${windows:-0} ventanas, ${panes:-0} panes"
+  echo "procesos activos capturados: ${commands:-0}"
+  echo "contenido de panes capturado: $contents"
+fi

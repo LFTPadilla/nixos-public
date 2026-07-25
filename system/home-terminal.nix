@@ -6,6 +6,7 @@
   hmStateVersion,
   ...
 }: {
+  # session.nix and ssh.nix are private-only and excluded from this repository.
   imports = [
     ../users/felipe/home-modules/shell.nix
     ../users/felipe/home-modules/git.nix
@@ -30,6 +31,15 @@
     MANPAGER = "less -FR";
     NPM_CONFIG_PREFIX = "${config.home.homeDirectory}/.npm-global";
   };
+
+  # ai-env: central AI secret router (Infisical + local fallback).
+  # Scripts on PATH; default config symlinked so edits don't need a rebuild.
+  home.file.".local/bin/ai-env".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/ai-env";
+  home.file.".local/bin/ai-secrets-audit".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/ai-secrets-audit";
+  xdg.configFile."ai-env/profiles.conf".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/export/harnesses/ai-env.default.conf";
 
   programs.kitty = {
     enable = true;
@@ -170,17 +180,14 @@
     };
   };
 
-  programs.neovim = {
-    enable = true;
-    defaultEditor = false;
-    viAlias = false;
-    vimAlias = false;
-  };
+  # Keep the complete Lua configuration below as an out-of-store directory.
+  # Home Manager's Neovim module now generates init.lua itself, which conflicts
+  # with that directory-level link.
+  home.packages = [pkgs.neovim];
 
   xdg.configFile."nvim".source =
     config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/nvim";
-  xdg.configFile."tmuxinator/personal.yml".source =
-    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/export/tmuxinator/personal.yml";
+  # Tmuxinator projects are linked by users/felipe/home-modules/shell.nix.
 
   programs.direnv = {
     enable = true;

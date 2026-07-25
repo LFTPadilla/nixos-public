@@ -3,6 +3,7 @@
   lib,
   pkgs,
   inputs,
+  hmStateVersion,
   ...
 }: {
   imports = [
@@ -82,9 +83,9 @@
     # Hardware-specific optimizations
     extraModprobeConfig = ''
       options intel_pstate force_load=1
-      options snd-hda-intel power_save=1
-      # Disable Intel Wi‑Fi power saving to prevent link flaps
-      options iwlwifi power_save=0
+      options snd-hda-intel power_save=0
+      # Disable MediaTek MT7925 (RZ717) power saving to prevent link flaps
+      options mt7925e disable_aspm=1
       options pcie_aspm.policy=default
       # Bluetooth power management and HFP fixes
       options btusb enable_autosuspend=0
@@ -134,7 +135,9 @@
 
   nixpkgs.config = {
     allowUnsupportedSystem = true;
-    allowUnfree = true;
+    # allowUnfree comes from nixosDefaults in flake.nix. Note that with
+    # allowUnfree = true the predicate below is inert; it only takes effect if
+    # allowUnfree is turned off again.
     allowUnfreePredicate = pkg:
       builtins.elem (lib.getName pkg) [
         "1password-gui"
@@ -158,7 +161,7 @@
 
   networking = {
     hostName = "nixos";
-    extraHosts = (import ../../system/example.private-hosts.nix).extraHosts;
+    extraHosts = import ../../system/private-hosts.nix;
     nameservers = [
       "1.1.1.1"
       "1.0.0.1"
@@ -311,7 +314,7 @@
       enable = true;
       xkb = {
         layout = "us";
-        variant = "";
+        variant = "altgr-intl";
       };
       serverFlagsSection = ''
         Option "BlankTime" "0"
@@ -331,15 +334,15 @@
       alsa.enable = true;
       alsa.support32Bit = true;
       pulse.enable = true;
-      # Enhanced Bluetooth audio configuration
+      # Enhanced Bluetooth audio configuration (WirePlumber 0.5+ API)
       wireplumber.configPackages = [
-        (pkgs.writeTextDir "share/wireplumber/bluetooth.lua.d/51-bluez-config.lua" ''
-          bluez_monitor.properties = {
-            ["bluez5.enable-sbc-xq"] = true,
-            ["bluez5.enable-msbc"] = true,
-            ["bluez5.enable-hw-volume"] = true,
-            ["bluez5.headset-roles"] = "[ hsp_hs hsp_ag hfp_hf hfp_ag ]",
-            ["bluez5.hfp-offload-sco"] = false,
+        (pkgs.writeTextDir "share/wireplumber/wireplumber.conf.d/51-bluez-config.conf" ''
+          monitor.bluez.properties = {
+            bluez5.enable-sbc-xq = true
+            bluez5.enable-msbc = true
+            bluez5.enable-hw-volume = true
+            bluez5.headset-roles = [ hsp_hs hsp_ag hfp_hf hfp_ag ]
+            bluez5.hfp-offload-sco = false
           }
         '')
       ];
@@ -352,14 +355,24 @@
   # Enable I²C for DDC/CI (external monitor brightness control)
   hardware.i2c.enable = true;
 
+  # Razer peripherals (Naga V2 HyperSpeed)
+  hardware.openrazer = {
+    enable = true;
+    users = ["felipe"];
+  };
+
   home-manager = {
     backupFileExtension = "hm-bak";
-    extraSpecialArgs = {inherit inputs;};
+    extraSpecialArgs = {inherit inputs hmStateVersion;};
     users = {
       "felipe" = import ../../system/home.nix;
-      "root" = {pkgs, ...}: {
+      "root" = {
+        pkgs,
+        hmStateVersion,
+        ...
+      }: {
         programs.home-manager.enable = true;
-        home.stateVersion = "24.05";
+        home.stateVersion = hmStateVersion;
         programs.bash.enable = true;
         programs.bash.shellAliases = {
           ll = "ls -l --color=auto";
@@ -370,24 +383,24 @@
     };
   };
 
-  # Enhanced DNS configuration
+  # Enhanced DNS configuration (resolved.conf(5) via settings.Resolve)
   services.resolved = {
     enable = true;
     settings.Resolve = {
-      Cache = true;
-      CacheFromLocalhost = false;
-      CacheSize = 1000;
-      DNSOverTLS = "opportunistic";
       DNSSEC = "allow-downgrade";
-      DNSStubListener = true;
       FallbackDNS = [
         "9.9.9.9"
         "149.112.112.112"
       ];
-      LLMNR = false;
-      MulticastDNS = false;
-      ReadEtcHosts = true;
-      ResolveUnicastSingleLabel = false;
+      MulticastDNS = "no";
+      LLMNR = "no";
+      ReadEtcHosts = "yes";
+      Cache = "yes";
+      CacheFromLocalhost = "no";
+      DNSStubListener = "yes";
+      ResolveUnicastSingleLabel = "no";
+      DNSOverTLS = "opportunistic";
+      CacheSize = "1000";
     };
   };
 
@@ -440,6 +453,7 @@
       "uucp"
       "fuse"
       "vboxusers"
+      "plugdev"
     ];
     shell = pkgs.zsh;
     packages = [];
@@ -483,7 +497,7 @@
 
   kubernetes-tools = {
     enable = true;
-    kubeconfigPath = "/home/felipe/.kube/config";
+    kubeconfigPath = "/home/felipe/.kube/k8s-cluster.dev.dman.cloud.yaml";
   };
 
   # Enable work application launcher
@@ -517,6 +531,9 @@
     # Sunshine udev rules for virtual input devices
     KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="input", OPTIONS+="static_node=uinput"
     KERNEL=="uhid", MODE="0660", GROUP="input"
+
+    # NexiGo N60 webcam: reset digital zoom, pan, tilt to defaults on connect
+    ACTION=="add", SUBSYSTEM=="video4linux", ATTRS{idVendor}=="3443", ATTRS{idProduct}=="60bb", RUN+="${pkgs.v4l-utils}/bin/v4l2-ctl --device=$devnode --set-ctrl=zoom_absolute=10,pan_absolute=0,tilt_absolute=0"
   '';
 
   environment.sessionVariables = {
@@ -643,22 +660,15 @@
     dates = ["weekly"];
   };
 
-  fonts = let
-    # Use a stable nixpkgs for Nerd Fonts (known-good attr names)
-    stablePkgs = inputs.nixpkgs-stable.legacyPackages.${pkgs.system};
-  in {
+  fonts = {
     packages = with pkgs; [
       jetbrains-mono
       inter
       noto-fonts
       noto-fonts-color-emoji
       liberation_ttf
-      (stablePkgs.nerdfonts.override {
-        fonts = [
-          "JetBrainsMono"
-          "NerdFontsSymbolsOnly"
-        ];
-      })
+      nerd-fonts.jetbrains-mono
+      nerd-fonts.symbols-only
     ];
     fontconfig = {
       enable = true;
