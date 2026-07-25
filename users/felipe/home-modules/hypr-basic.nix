@@ -98,7 +98,7 @@
 
     exec-once = dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_DATA_DIRS PATH
     exec-once = systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_DATA_DIRS PATH
-    exec-once = ${pkgs.swww}/bin/swww-daemon --quiet
+    exec-once = ${pkgs.awww}/bin/awww-daemon --quiet
     exec-once = /home/felipe/.local/bin/wallpaper-randomize
     exec-once = waybar
     exec-once = swaync
@@ -219,8 +219,10 @@
       #!/usr/bin/env bash
       set -euo pipefail
 
-      SWWW="${pkgs.swww}/bin/swww"
-      SWWW_DAEMON="${pkgs.swww}/bin/swww-daemon"
+      # swww was renamed to awww upstream, and so were its binaries: the old
+      # bin/swww-daemon path does not exist in the renamed package.
+      SWWW="${pkgs.awww}/bin/awww"
+      SWWW_DAEMON="${pkgs.awww}/bin/awww-daemon"
 
       start_daemon() {
         if "$SWWW" query >/dev/null 2>&1; then
@@ -387,7 +389,7 @@
 
   systemd.user.services.wallpaper-randomize = {
     Unit = {
-      Description = "Randomize wallpaper (swww)";
+      Description = "Randomize wallpaper (awww)";
       After = ["graphical-session.target"];
       PartOf = ["graphical-session.target"];
     };

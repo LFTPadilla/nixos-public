@@ -30,7 +30,7 @@ in {
       waybar
       swaybg
       swaynotificationcenter
-      swww
+      awww # renamed upstream from swww
       kitty
       wl-clipboard
       grim

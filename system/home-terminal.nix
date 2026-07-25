@@ -164,6 +164,9 @@
     enableBashIntegration = true;
     enableZshIntegration = true;
     defaultOptions = ["--height" "40%" "--border" "--layout=reverse"];
+    # Atuin is sourced after fzf and already owns Ctrl-R. Saying so explicitly
+    # settles the contested binding instead of warning on every rebuild.
+    historyWidget.command = "";
   };
 
   programs.atuin = {
