@@ -62,7 +62,7 @@ for i, subnet in enumerate(public_subnets, start=1):
 # ============================================================================
 
 # Create application security group restricted to your IP (configure via Pulumi config `allowed_cidr`)
-allowed_cidr = config.get("allowed_cidr") or "181.53.99.101/32"
+allowed_cidr = config.get("allowed_cidr") or "203.0.113.10/32"
 app_security_group = security.create_app_security_group(vpc, stack, allowed_cidr)
 
 

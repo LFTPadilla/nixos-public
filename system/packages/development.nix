@@ -16,6 +16,7 @@ with pkgs; [
   nur.repos.charmbracelet.crush # AI coding agent
   aider-chat # AI pair programming assistant
   doppler # Environment management
+  infisical # Centralized secret management (ai-env backend)
   atuin
   nixos-anywhere #
   # ollama

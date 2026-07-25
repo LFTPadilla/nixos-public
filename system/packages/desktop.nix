@@ -104,6 +104,7 @@
   gnome-tweaks
   gnome-sound-recorder
   nautilus
+  polychromatic
 ])
 ++ [
   # Claude Desktop with FHS support for MCP servers

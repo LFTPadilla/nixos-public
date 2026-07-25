@@ -158,7 +158,7 @@
 
   networking = {
     hostName = "nixos";
-    extraHosts = import ../../system/private-hosts.nix;
+    extraHosts = (import ../../system/example.private-hosts.nix).extraHosts;
     nameservers = [
       "1.1.1.1"
       "1.0.0.1"
@@ -373,24 +373,22 @@
   # Enhanced DNS configuration
   services.resolved = {
     enable = true;
-    dnssec = "allow-downgrade";
-    fallbackDns = [
-      "9.9.9.9"
-      "149.112.112.112"
-    ];
-    # domains = ["~."];
-    extraConfig = ''
-      MulticastDNS=no
-      LLMNR=no
-      ReadEtcHosts=yes
-      Cache=yes
-      CacheFromLocalhost=no
-      DNSStubListener=yes
-      ResolveUnicastSingleLabel=no
-      # Performance optimizations
-      DNSOverTLS=opportunistic
-      CacheSize=1000
-    '';
+    settings.Resolve = {
+      Cache = true;
+      CacheFromLocalhost = false;
+      CacheSize = 1000;
+      DNSOverTLS = "opportunistic";
+      DNSSEC = "allow-downgrade";
+      DNSStubListener = true;
+      FallbackDNS = [
+        "9.9.9.9"
+        "149.112.112.112"
+      ];
+      LLMNR = false;
+      MulticastDNS = false;
+      ReadEtcHosts = true;
+      ResolveUnicastSingleLabel = false;
+    };
   };
 
   # Prefer wired over Wi‑Fi for default route to prevent route flapping
@@ -485,7 +483,7 @@
 
   kubernetes-tools = {
     enable = true;
-    kubeconfigPath = "/home/felipe/.kube/k8s-cluster.dev.dman.cloud.yaml";
+    kubeconfigPath = "/home/felipe/.kube/config";
   };
 
   # Enable work application launcher

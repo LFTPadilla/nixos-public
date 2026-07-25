@@ -90,8 +90,8 @@
       force_zero_scaling = true
     }
 
-    # Applications
-    $terminal = kitty
+    # Applications (absolute path so Hyprland finds kitty before login PATH is complete)
+    $terminal = ${pkgs.kitty}/bin/kitty
     $rofi = /home/felipe/.dotfiles/system/applications/rofi/rofi-wrapper.sh
     $menu = $rofi -show drun
     $filemanager = dolphin

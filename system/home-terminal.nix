@@ -1,14 +1,35 @@
 {
   pkgs,
   inputs,
+  config,
+  lib,
+  hmStateVersion,
   ...
 }: {
   imports = [
     ../users/felipe/home-modules/shell.nix
+    ../users/felipe/home-modules/git.nix
+    ./packages/dev-cli.nix
   ];
 
-  home.username = "felipe";
-  home.stateVersion = "24.05";
+  home.username = lib.mkDefault "felipe";
+  home.homeDirectory = lib.mkDefault "/home/felipe";
+  home.stateVersion = hmStateVersion;
+  targets.genericLinux.enable = lib.mkDefault pkgs.stdenv.isLinux;
+
+  nixpkgs.config.allowUnfree = true;
+  xdg.enable = true;
+
+  home.sessionPath = [
+    "$HOME/.local/bin"
+    "$HOME/.npm-global/bin"
+  ];
+
+  home.sessionVariables = {
+    PAGER = "less -FR";
+    MANPAGER = "less -FR";
+    NPM_CONFIG_PREFIX = "${config.home.homeDirectory}/.npm-global";
+  };
 
   programs.kitty = {
     enable = true;
@@ -20,7 +41,6 @@
       adjust_line_height = "120%";
       disable_ligatures = "cursor";
       background_opacity = "1.0";
-      window_scaling = 200;
       # Advanced font features
       bold_font = "auto";
       italic_font = "auto";
@@ -47,7 +67,9 @@
 
       # Window layout
       window_padding_width = "4";
-      hide_window_decorations = "false";
+      # kitty expects yes/no (not "false"); needed for server-side title bar + menu affordances
+      hide_window_decorations = "no";
+      # window_title_bar / window_title_bar_min_windows require kitty ≥0.46 (nixpkgs may ship 0.45)
       confirm_os_window_close = 0;
       enabled_layouts = "tall,stack,fat,grid,splits";
       inactive_text_alpha = "0.8";
@@ -61,7 +83,11 @@
       # Advanced terminal features
       clipboard_control = "write-clipboard write-primary no-append";
       term = "xterm-kitty";
-      shell = "${pkgs.tmux}/bin/tmux new-session -A -s main";
+      # "x11" on Wayland forces XWayland and often breaks overlays (command palette / menus).
+      # Use native Wayland when available; set linux_display_server x11 only if EGL/GL fails.
+      linux_display_server = "auto";
+      wayland_enable_ime = "yes";
+      shell = "${config.home.homeDirectory}/.dotfiles/system/scripts/kitty-tmux-shell.sh";
       shell_integration = "enabled";
       allow_hyperlinks = "yes";
 
@@ -110,6 +136,14 @@
       "ctrl+shift+f" = "show_scrollback";
       "ctrl+shift+u" = "unicode_input";
       "ctrl+shift+delete" = "clear_terminal reset active";
+      # Command palette (kitty "menu"); default is ctrl+shift+f3 — GNOME often steals F3
+      "ctrl+shift+m" = "command_palette";
+      "ctrl+shift+slash" = "command_palette";
+      "ctrl+shift+f3" = "command_palette";
+    };
+
+    mouseBindings = {
+      "ctrl+shift+right press ungrabbed" = "command_palette";
     };
   };
 
@@ -117,12 +151,14 @@
 
   programs.fzf = {
     enable = true;
+    enableBashIntegration = true;
     enableZshIntegration = true;
     defaultOptions = ["--height" "40%" "--border" "--layout=reverse"];
   };
 
   programs.atuin = {
     enable = true;
+    enableBashIntegration = true;
     enableZshIntegration = true;
     settings = {
       auto_sync = true;
@@ -134,18 +170,21 @@
     };
   };
 
-  programs.git = {
+  programs.neovim = {
     enable = true;
-    settings = {
-      user = {
-        name = "Felipe Tejada";
-        email = "felipe.tejada@kommit.co";
-      };
-      alias = {
-        lol = "log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%C(bold blue)<%an>%Creset' --abbrev-commit";
-        rails-console = ''docker exec -it $(docker ps -q -f name=showcase_web | head -n 1) bash -c "cd /app && bundle exec rails console"'';
-      };
-    };
+    defaultEditor = false;
+    viAlias = false;
+    vimAlias = false;
+  };
+
+  xdg.configFile."nvim".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/nvim";
+  xdg.configFile."tmuxinator/personal.yml".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/export/tmuxinator/personal.yml";
+
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true;
   };
 
   programs.home-manager.enable = true;

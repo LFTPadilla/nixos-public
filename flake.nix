@@ -57,10 +57,27 @@
     disko,
     nixos-facter-modules,
     ...
-  } @ inputs: rec {
+  } @ inputs: let
+    hmStateVersion = "24.05";
+  in rec {
+    # ============================================
+    # home-manager standalone (Nix-on-Ubuntu)
+    # ============================================
+
+    # Ubuntu CLI development host via Home Manager
+    # Apply: nix run nixpkgs#home-manager -- switch --flake .#ubuntu-dev
+    homeConfigurations.ubuntu-dev = home-manager.lib.homeManagerConfiguration {
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      extraSpecialArgs = {inherit inputs hmStateVersion;};
+      modules = [
+        ./hosts/ubuntu-dev/home.nix
+      ];
+    };
+
+    homeConfigurations.ubuntu-cli = homeConfigurations.ubuntu-dev;
     nixosConfigurations.default-msi = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = {inherit inputs;};
+      specialArgs = {inherit inputs hmStateVersion;};
       modules = [
         ./hosts/main/configuration.nix
         ./hosts/main/msi.nix
@@ -73,7 +90,7 @@
 
     nixosConfigurations.default-hp = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      specialArgs = {inherit inputs;};
+      specialArgs = {inherit inputs hmStateVersion;};
       modules = [
         ./hosts/main/configuration.nix
         ./hosts/main/hp.nix
@@ -86,30 +103,6 @@
 
     nixosConfigurations.default = nixosConfigurations.default-msi;
     nixosConfigurations.main = nixosConfigurations.default-msi;
-
-    nixosConfigurations.nixos-proxmox = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      specialArgs = {inherit inputs;};
-      modules = [
-        ./hosts/nixos-proxmox/configuration.nix
-        home-manager.nixosModules.default
-        {
-          nixpkgs.overlays = [nur.overlays.default];
-        }
-      ];
-    };
-
-    nixosConfigurations.gmk = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      specialArgs = {inherit inputs;};
-      modules = [
-        ./hosts/gmk/configuration.nix
-        home-manager.nixosModules.default
-        {
-          nixpkgs.overlays = [nur.overlays.default];
-        }
-      ];
-    };
 
     # Cloud / installer hosts (formerly deploy/nixos-cloud/flake.nix)
     nixosConfigurations.nixos-aws = nixpkgs.lib.nixosSystem {
@@ -130,28 +123,13 @@
       ];
     };
 
-    nixosConfigurations.generic-nixos-facter = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        disko.nixosModules.disko
-        ./deploy/nixos-cloud/configuration.nix
-        nixos-facter-modules.nixosModules.facter
-        {
-          config.facter.reportPath =
-            if builtins.pathExists ./deploy/nixos-cloud/facter.json
-            then ./deploy/nixos-cloud/facter.json
-            else throw "Have you forgotten to run nixos-anywhere with `--generate-hardware-config nixos-facter ./deploy/nixos-cloud/facter.json`?";
-        }
-      ];
-    };
-
     # ============================================
     # macOS / nix-darwin configurations
     # ============================================
 
     darwinConfigurations.mac = nix-darwin.lib.darwinSystem {
       system = "aarch64-darwin";
-      specialArgs = {inherit inputs;};
+      specialArgs = {inherit inputs hmStateVersion;};
       modules = [
         ./hosts/mac
         home-manager.darwinModules.home-manager
@@ -174,7 +152,7 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             backupFileExtension = "hm-bak";
-            extraSpecialArgs = {inherit inputs;};
+            extraSpecialArgs = {inherit inputs hmStateVersion;};
             users.felipe = import ./hosts/mac/home.nix;
           };
         }

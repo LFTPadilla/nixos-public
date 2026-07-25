@@ -1,7 +1,7 @@
 import pulumi
 from pulumi_aws import ec2
 
-def create_app_security_group(vpc, stack_name, allowed_cidr: str = "181.53.99.101/32"):
+def create_app_security_group(vpc, stack_name, allowed_cidr: str = "203.0.113.10/32"):
     """Create a security group for the application servers (EC2 instances)
     Only allows inbound SSH from the provided CIDR (HTTP/HTTPS commented for future use).
     """

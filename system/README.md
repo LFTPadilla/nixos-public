@@ -2,7 +2,7 @@
 
 ## Setup Instructions
 
-1. **Private Hosts**: Copy `private-hosts.example.nix` to `private-hosts.nix` and add your actual development hosts and production IPs
+1. **Private Hosts**: Copy `example.private-hosts.nix` to `private-hosts.nix` and add your actual development hosts and production IPs
 2. **Home Assistant**: See `users/felipe/homeassistant/README.md` for HA setup
 
 ## Files to Keep Private

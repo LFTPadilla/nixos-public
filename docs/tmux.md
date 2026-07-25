@@ -10,8 +10,12 @@ Reload: `Prefix + r` (sources `~/.config/tmux/tmux.conf` inside tmux).
 - Clipboard: mouse drag-select copies on release.
 
 ## Prefixes
-- Primary: `` ` `` (Backtick) - Press twice to send a literal backtick.
-- Secondary: `Ctrl-Space` and `Ctrl-b`
+- Primary: `Ctrl-Space` (see `users/felipe/home-modules/shell.nix` line ~415: `set -g prefix C-Space`).
+- Secondary: `Ctrl-b` (passes through naturally to nested remote tmux sessions).
+- Note: the previous Backtick primary prefix was retired when the Catppuccin
+  theme moved from Mocha to Latte. If your active `tmux.conf` still shows
+  backtick, you're running an old build — rebuild with `home-manager switch
+  --flake ~/.dotfiles#ubuntu-dev` and reload with `Prefix + r`.
 
 ## Pane focus & movement
 - Default tmux: `Prefix + Arrow keys` moves between panes; `Prefix + q` shows pane numbers to jump; `Prefix + o` cycles panes.

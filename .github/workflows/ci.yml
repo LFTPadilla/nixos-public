@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, hyperland]
+  pull_request:
+    branches: [main, master, hyperland]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Check formatting
+        run: |
+          nix run nixpkgs#alejandra -- --check .
+
+      - name: Scan for committed secrets
+        uses: gitleaks/gitleaks-action@v2
+
+      - name: Reject private-only paths
+        run: |
+          if git ls-files | grep -Ef .public-export-denylist; then
+            echo "Private-only paths are tracked in the public repository." >&2
+            exit 1
+          fi
+
+      - name: Evaluate home configurations
+        run: |
+          nix eval --json .#homeConfigurations.ubuntu-dev.config.home.username
+          nix eval --json .#darwinConfigurations.mac.config.home-manager.users.felipe.home.username

@@ -12,6 +12,31 @@ Pulumi.*.yaml
 users/felipe/homeassistant/hacompanion.toml
 
 # Private configurations
+system/private-hosts.nix
+hosts/blackrack/
+hosts/gmk/
+hosts/nixos-proxmox/
+hosts/wilson/
+hosts/mac/tools/beszel/
+k8s/
+pve/
+routes/
+route/
+export/ccr-config.json
+export/hermes/
+export/harnesses/ai-env*
+export/tmuxinator/work.yml
+export/tmuxinator/komp.yml
+export/tmuxinator/vault.yml
+system/scripts/ai-env
+system/scripts/ai-env-source.sh
+system/scripts/ai-secrets-audit
+system/scripts/mcp-sync
+system/scripts/vault-skills-sync
+system/scripts/tmux-auto-ssh.sh
+system/scripts/tmux-sync-hosts.sh
+users/felipe/home-modules/session.nix
+users/felipe/home-modules/ssh.nix
 *.local.toml
 *.private.toml
 **/secrets/
@@ -19,6 +44,18 @@ users/felipe/homeassistant/hacompanion.toml
 **/*.key
 **/*.pem
 **/__pycache__/
+*.py[cod]
+*.token
+**/.config/gh/hosts.yml
+**/.config/go/telemetry/
+**/.config/uv/uv-receipt.json
+**/.npmrc
+.env
+**/.env
+!.env.example
+!**/.env.example
+# Rescue copies are local-only recovery material, never configuration.
+rescue/
 deploy/infrastructure/aws/venv/*
 deploy/infrastructure/aws/.venv/*
 
@@ -30,3 +67,8 @@ deploy/infrastructure/aws/.venv/*
 node_modules/
 package-lock.json
 package.json
+.DS_Store
+
+# Nix build symlink in repo root
+result
+result-*

@@ -45,7 +45,7 @@ with pkgs; [
   gnomeExtensions.status-area-horizontal-spacing
   gnomeExtensions.clipboard-indicator
   gnomeExtensions.bluetooth-battery-meter
-  gnomeExtensions.extensions-glass-grid
+  # extensions-glass-grid removed upstream from nixpkgs gnomeExtensions
   gnomeExtensions.bing-wallpaper-changer
   gnomeExtensions.alphabetical-app-grid
   gnomeExtensions.media-controls

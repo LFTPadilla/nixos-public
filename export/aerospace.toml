@@ -132,15 +132,15 @@ esc = 'mode main'
 if.app-id = 'net.kovidgoyal.kitty'
 run = 'move-node-to-workspace 1'
 
-# 2: VS Code
+# 2: Cursor
 [[on-window-detected]]
-if.app-id = 'com.microsoft.VSCode'
+if.app-id = 'com.todesktop.230313mzl4w4u92'
 run = 'move-node-to-workspace 2'
 
-# 3: Helium
+# Helium (Picture-in-Picture)
 [[on-window-detected]]
 if.app-id = 'net.imput.helium'
-run = 'move-node-to-workspace 3'
+run = 'layout floating'
 
 # 4: Brave
 [[on-window-detected]]
@@ -152,16 +152,37 @@ run = 'move-node-to-workspace 4'
 if.app-id = 'md.obsidian'
 run = 'move-node-to-workspace 5'
 
-# 6: Zed
+# 6: Antigravity
 [[on-window-detected]]
-if.app-id = 'dev.zed.Zed'
+if.app-id = 'com.google.antigravity'
 run = 'move-node-to-workspace 6'
+
+# 10: Discord
+[[on-window-detected]]
+if.app-id = 'com.hnc.Discord'
+run = 'move-node-to-workspace 10'
 
 # ==========================================
 # Float certain apps
 # ==========================================
 [[on-window-detected]]
 if.app-id = 'com.apple.systempreferences'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.systemsettings'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.Preview'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.keychainaccess'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.QuickTimePlayerX'
 run = 'layout floating'
 
 [[on-window-detected]]

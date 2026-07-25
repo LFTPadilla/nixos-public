@@ -1,0 +1,17 @@
+name: personal
+root: ~/.dotfiles
+
+startup_window: editor
+
+windows:
+  - editor:
+      layout: even-horizontal
+      panes:
+        - nvim .
+        - zsh
+  - git:
+      panes:
+        - lazygit
+  - shell:
+      panes:
+        - zsh

@@ -24,8 +24,8 @@ nixos-anywhere --flake .#generic --generate-hardware-config nixos-generate-confi
 
 
 ## First build proxmox
-nixos-anywhere --flake ".#nixos-installer" --generate-hardware-config nixos-generate-config ./hardware-configuration.nix -i ~/.ssh/homeserver --ssh-option "IdentitiesOnly=yes" --ssh-option "StrictHostKeyChecking=no" --target-host root@192.168.5.10
-NIX_SSHOPTS='-i ~/.ssh/homeserver -o IdentitiesOnly=yes -o StrictHostKeyChecking=no' nixos-rebuild switch --flake .#nixos-installer --target-host root@192.168.5.95
+nixos-anywhere --flake ".#nixos-installer" --generate-hardware-config nixos-generate-config ./hardware-configuration.nix -i ~/.ssh/nixos-cloud --ssh-option "IdentitiesOnly=yes" --target-host root@192.0.2.10
+NIX_SSHOPTS='-i ~/.ssh/nixos-cloud -o IdentitiesOnly=yes' nixos-rebuild switch --flake .#nixos-installer --target-host root@192.0.2.10
 
 
 
