@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${TMUX_GIT_AUTOFETCH:-1}" = 1 ]] || exit 0
+dir=$(tmux display -p -F '#{pane_current_path}')
+if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$dir")
+  cache="${XDG_CACHE_HOME:-$HOME/.cache}/tmux-git-autofetch"
+  mkdir -p "$cache"
+  key=$(printf '%s' "$top" | sha1sum | awk '{print $1}')
+  stamp="$cache/$key.stamp"
+  now=$(date +%s)
+  interval="${TMUX_GIT_AUTOFETCH_INTERVAL:-600}"
+  last=0; [[ -f "$stamp" ]] && last=$(cat "$stamp" 2>/dev/null || echo 0)
+  if [[ $((now - last)) -ge $interval ]]; then
+    ( git -C "$top" fetch --all -p -q >/dev/null 2>&1 && echo "$now" > "$stamp" ) &
+  fi
+fi

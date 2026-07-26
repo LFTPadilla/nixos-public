@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MAP="$HOME/.tmux/resurrect/agent_sessions.tsv"
+if [[ ! -r "$MAP" ]]; then
+  echo "no hay agent_sessions.tsv; nada que restaurar" >&2
+  exit 0
+fi
+
+restored=0
+skipped=0
+while IFS=$'\t' read -r target cmd path agent sid ts; do
+  [[ -n "${agent:-}" && -n "${sid:-}" ]] || continue
+  [[ "$agent" == "codex" ]] || continue
+
+  ready=0
+  for _ in $(seq 1 40); do
+    if tmux list-panes -t "$target" >/dev/null 2>&1; then ready=1; break; fi
+    sleep 0.5
+  done
+  if [[ "$ready" -ne 1 ]]; then
+    echo "skip (pane no creado por resurrect): $target" >&2
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  tmux send-keys -t "$target" "codex resume $sid" C-m
+  restored=$((restored + 1))
+  sleep 0.4
+done < "$MAP"
+
+echo "agentes codex restaurados: $restored (skipped: $skipped)"

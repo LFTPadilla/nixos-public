@@ -65,8 +65,7 @@
 
   # Remote Access & Imaging
   realvnc-vnc-viewer
-  # Use rpi-imager from stable nixpkgs to avoid current build failure on unstable
-  (inputs.nixpkgs-stable.legacyPackages.${pkgs.system}.rpi-imager)
+  rpi-imager
 
   # AI & Machine Learning
   # lmstudio # removed to avoid CUDA-related hooks
@@ -80,13 +79,11 @@
   # obs-studio # temporarily removed to avoid GPU-related hooks
   pavucontrol
   soundwireserver
-  video-trimmer
-  vlc
+  video-trimmer # vlc: packages/system.nix
 
   ## Utility
   dconf-editor
   ddcui # GUI for controlling monitor brightness via DDC/CI
-  gnome-disk-utility
   zenity
   wdisplays # Wayland display layout GUI (mirror/extend quickly)
 
@@ -104,10 +101,11 @@
   gnome-tweaks
   gnome-sound-recorder
   nautilus
+  polychromatic
 ])
 ++ [
-  # Claude Desktop with FHS support for MCP servers
-  inputs.claude-desktop.packages.${pkgs.system}.claude-desktop-with-fhs
+  # Removed claude-desktop-linux-flake: unmaintained against current nixpkgs
+  # (calls pkgs.nodePackages, removed 2026-03) and pulls EOL Electron 39.
 
   # Zen Browser
   # inputs.zen-browser.packages.${pkgs.system}.default

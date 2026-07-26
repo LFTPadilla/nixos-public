@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# List project names from the tmuxinator config dir so this never goes
+# stale when a new export/tmuxinator/*.yml is added.
+projects() {
+  local dir="${XDG_CONFIG_HOME:-$HOME/.config}/tmuxinator"
+  local names=()
+  local f
+  for f in "$dir"/*.yml; do
+    [[ -e "$f" ]] || continue
+    names+=("$(basename "$f" .yml)")
+  done
+  (IFS='|'; printf '%s' "${names[*]:-project}")
+}
+
+usage() {
+  printf '%s\n' \
+    "Usage: mux-session <$(projects)> [--restart|--restore|--doctor]" \
+    "" \
+    "Default:" \
+    "  Attach/switch to the existing session, or start the tmuxinator layout cleanly." \
+    "" \
+    "Modes:" \
+    "  --restart  Save a resurrect snapshot, kill only this session, then start tmuxinator cleanly." \
+    "  --restore  Run tmux resurrect, then attach/switch to the requested session if present." \
+    "  --doctor   Run tmux-doctor."
+}
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
+fi
+
+session="${1:-}"
+mode="start"
+[[ -n "$session" ]] || { usage >&2; exit 2; }
+shift || true
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --restart|-r) mode="restart" ;;
+    --restart-detached) mode="restart-detached" ;;
+    --restore) mode="restore" ;;
+    --doctor) mode="doctor" ;;
+    --help|-h) usage; exit 0 ;;
+    *) echo "mux-session: unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+notify() {
+  if [[ -n "${TMUX:-}" ]]; then
+    tmux display-message "$*"
+  else
+    printf '%s\n' "$*" >&2
+  fi
+}
+
+attach_or_switch() {
+  local target="$1"
+  if [[ -n "${TMUX:-}" ]]; then
+    exec tmux switch-client -t "$target"
+  fi
+  exec tmux attach-session -t "$target"
+}
+
+start_tmuxinator() {
+  local project="$1"
+  if ! command -v tmuxinator >/dev/null 2>&1; then
+    echo "tmuxinator not found" >&2
+    exit 127
+  fi
+  exec tmuxinator start "$project"
+}
+
+start_tmuxinator_detached() {
+  local project="$1"
+  if ! command -v tmuxinator >/dev/null 2>&1; then
+    echo "tmuxinator not found" >&2
+    exit 127
+  fi
+  tmuxinator start "$project" --no-attach
+}
+
+case "$mode" in
+  doctor)
+    exec "$HOME/.local/bin/tmux-doctor"
+    ;;
+  restore)
+    "$HOME/.local/bin/tmux-restore"
+    if tmux has-session -t "$session" 2>/dev/null; then
+      attach_or_switch "$session"
+    fi
+    first="$(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep -v '^restore-bootstrap$' | head -n1 || true)"
+    [[ -n "${first:-}" ]] && attach_or_switch "$first"
+    exit 0
+    ;;
+  restart)
+    current_session="$(tmux display-message -p '#{session_name}' 2>/dev/null || true)"
+    if [[ -n "${TMUX:-}" && "$current_session" == "$session" ]]; then
+      tmux run-shell -b "$HOME/.local/bin/mux-session $session --restart-detached"
+      exit 0
+    fi
+    if tmux has-session -t "$session" 2>/dev/null; then
+      "$HOME/.local/bin/tmux-save" >/dev/null 2>&1 || true
+      tmux kill-session -t "$session"
+      notify "Restarting tmux session: $session"
+    fi
+    start_tmuxinator "$session"
+    ;;
+  restart-detached)
+    if tmux has-session -t "$session" 2>/dev/null; then
+      "$HOME/.local/bin/tmux-save" >/dev/null 2>&1 || true
+      tmux kill-session -t "$session"
+    fi
+    start_tmuxinator_detached "$session"
+    if tmux has-session -t "$session" 2>/dev/null; then
+      tmux switch-client -t "$session" 2>/dev/null || true
+    fi
+    ;;
+  start)
+    if tmux has-session -t "$session" 2>/dev/null; then
+      attach_or_switch "$session"
+    fi
+    start_tmuxinator "$session"
+    ;;
+esac

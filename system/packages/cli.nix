@@ -1,18 +1,16 @@
 {pkgs, ...}: {
+  imports = [./base-cli.nix];
+
   home.packages = with pkgs; [
     ## Better core utils
-    duf # disk information
-    eza # ls replacement
-    fd # find replacement
     gping # ping with a graph
     gtrash # rm replacement, put deleted files in system trash
     # hexyl # hex viewer
     man-pages # extra man pages
     ncdu # disk space
-    ripgrep # grep replacement
     tldr
-    tmuxinator
-    lazygit
+    # tmuxinator comes from packages/dev-cli.nix, which overrides it to 3.4.1
+    # for tmux 3.7b support. Two copies would collide in one profile.
 
     ## Tools / useful cli
     aoc-cli # Advent of Code command-line tool
@@ -41,9 +39,6 @@
     # System Utilities (User-facing)
     inetutils
 
-    bat
-    ranger # Keyboard-driven file manager
-
     # Disk Monitoring & Analysis
     # gsmartcontrol # GUI SMART monitoring (CrystalDiskInfo alternative)
     # smartmontools # Command-line SMART monitoring
@@ -52,7 +47,6 @@
 
     ## Monitoring / fetch
     # htop
-    btop
     onefetch # fetch utility for git repo
     wavemon # monitoring for wireless network devices
 
@@ -81,7 +75,6 @@
     ttyd # Terminal over HTTP
     ffmpeg
     file # Show file information
-    jq # JSON processor
     killall
     libnotify
     mimeo
@@ -89,13 +82,10 @@
     pamixer # pulseaudio command line mixer
     playerctl # controller for media players
     poweralertd
-    unzip
-    wget
     wl-clipboard # clipboard utils for wayland (wl-copy, wl-paste)
     cliphist # Wayland clipboard history manager
-    xdg-utils
 
     winetricks
-    wineWowPackages.waylandFull
+    wineWow64Packages.waylandFull
   ];
 }

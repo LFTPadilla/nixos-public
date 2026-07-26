@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Active pane path
+dir=$(tmux display -p -F '#{pane_current_path}')
+if ! top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null); then
+  exit 0
+fi
+
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/tmux-status"
+mkdir -p "$cache_dir"
+key="$(printf '%s' "$top" | sha1sum | awk '{print $1}')"
+cache="$cache_dir/git-$key.txt"
+interval="${TMUX_GIT_STATUS_INTERVAL:-20}"
+now="$(date +%s)"
+mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
+
+if [[ -s "$cache" ]]; then
+  last="$(mtime "$cache")"
+  if [[ $((now - last)) -lt "$interval" ]]; then
+    cat "$cache"
+    exit 0
+  fi
+fi
+
+branch=$(git -C "$dir" symbolic-ref --short -q HEAD 2>/dev/null || git -C "$dir" rev-parse --short HEAD 2>/dev/null || echo '?')
+
+dirty=""
+if command -v timeout >/dev/null 2>&1; then
+  status="$(timeout 1s git -C "$dir" status --porcelain=v1 2>/dev/null || true)"
+else
+  status="$(git -C "$dir" status --porcelain=v1 2>/dev/null || true)"
+fi
+if [[ -n "$status" ]]; then
+  dirty='*'
+fi
+
+ahead=""; behind=""
+if upstream=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name @{upstream} 2>/dev/null); then
+  if command -v timeout >/dev/null 2>&1; then
+    read -r L R < <(timeout 1s git -C "$dir" rev-list --left-right --count "$upstream"...HEAD 2>/dev/null || echo "0 0")
+  else
+    read -r L R < <(git -C "$dir" rev-list --left-right --count "$upstream"...HEAD 2>/dev/null || echo "0 0")
+  fi
+  [[ ${R:-0} -gt 0 ]] && ahead="⇡${R}"
+  [[ ${L:-0} -gt 0 ]] && behind="⇣${L}"
+fi
+
+bits=()
+bits+=(" ${branch}${dirty}")
+[[ -n "$ahead" ]] && bits+=("$ahead")
+[[ -n "$behind" ]] && bits+=("$behind")
+out="$(printf ' %s ' "${bits[*]}")"
+printf '%s' "$out" > "$cache"
+printf '%s' "$out"

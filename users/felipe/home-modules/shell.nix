@@ -7,6 +7,7 @@
   programs = {
     zsh = {
       enable = true;
+      dotDir = config.home.homeDirectory;
       enableCompletion = true;
       autosuggestion.enable = true;
       syntaxHighlighting.enable = true;
@@ -38,6 +39,19 @@
           unset TMOUT
         fi
 
+        # Make Ctrl-V paste the system clipboard at the shell prompt.
+        # Ctrl-Shift-V is still handled by the terminal; Ctrl-Q keeps quoted-insert available.
+        clipboard-paste-widget() {
+          emulate -L zsh
+          local pasted
+          pasted="$("$HOME/.local/bin/tmux-paste" --print 2>/dev/null)" || return 0
+          [[ -n "$pasted" ]] || return 0
+          LBUFFER+="$pasted"
+        }
+        zle -N clipboard-paste-widget
+        bindkey '^V' clipboard-paste-widget
+        bindkey '^Q' quoted-insert
+
         # Double-ESC to toggle sudo prefix (replaces oh-my-zsh sudo plugin)
         sudo-command-line() {
           [[ -z $BUFFER ]] && zle up-history
@@ -52,6 +66,37 @@
 
         # Prevent shells/themes from overriding terminal/tab title
         export DISABLE_AUTO_TITLE="true"
+
+        # Notify when long commands finish (>10s) while pane is not active
+        zmodload zsh/datetime 2>/dev/null || true
+        _CMD_START=0
+        _CMD_NAME=""
+        _notify_preexec() { _CMD_START=$EPOCHSECONDS; _CMD_NAME="''${1%%$'\n'*}"; }
+        _notify_precmd() {
+          local elapsed=$(( EPOCHSECONDS - _CMD_START ))
+          if (( _CMD_START > 0 && elapsed >= 10 )); then
+            if [[ -n "''${TMUX:-}" ]]; then
+              local active; active=$(tmux display-message -p '#{pane_id}' 2>/dev/null)
+              if [[ "$active" != "''${TMUX_PANE:-}" ]]; then
+                local msg="Done (''${elapsed}s): ''${_CMD_NAME:0:60}"
+                tmux display-message "$msg" 2>/dev/null || true
+                command notify-send -t 4000 -a tmux "Command finished" "$msg" 2>/dev/null || true
+              fi
+            fi
+          fi
+          _CMD_START=0
+        }
+        autoload -Uz add-zsh-hook
+        add-zsh-hook preexec _notify_preexec
+        add-zsh-hook precmd _notify_precmd
+
+        # ── ai-env: load local AI keys fallback for interactive shells ──────
+        # The canonical source is Infisical; ~/.config/ai-keys.env is the
+        # local fallback so tools launched directly (not via `ai-env`) still
+        # resolve. Migrate to `ai-env <profile>` invocations over time and
+        # this source can be removed for a keyless shell env.
+        [ -r "$HOME/.dotfiles/system/scripts/ai-env-source.sh" ] && \
+          source "$HOME/.dotfiles/system/scripts/ai-env-source.sh"
 
         # Auto-attach to the shared tmux session when logging in via SSH.
         # (Kitty already starts tmux via its `shell` setting.)
@@ -91,22 +136,83 @@
           g = "git";
           ga = "git add";
           gaa = "git add --all";
+          gapa = "git add --patch";
           gc = "git commit -v";
+          gcmsg = "git commit -m";
           "gc!" = "git commit -v --amend";
           gca = "git commit -v -a";
           "gca!" = "git commit -v -a --amend";
           gco = "git checkout";
           gcb = "git checkout -b";
+          gcm = "git switch main";
+          gcd = "git switch develop";
+          gsw = "git switch";
+          gswc = "git switch -c";
           gst = "git status";
+          gss = "git status -s";
           gp = "git push";
+          gpu = "git push -u origin HEAD";
+          gpf = "git push --force-with-lease";
           gl = "git pull";
+          gpr = "git pull --rebase";
+          gf = "git fetch";
+          gfa = "git fetch --all --prune";
           gd = "git diff";
+          gds = "git diff --staged";
           gdc = "git diff --cached";
+          gdt = "git difftool";
           gb = "git branch";
+          gba = "git branch -a";
+          gbd = "git branch -d";
+          gbD = "git branch -D";
           gm = "git merge";
+          gmt = "git mergetool";
           grb = "git rebase";
+          grba = "git rebase --abort";
+          grbc = "git rebase --continue";
+          grbi = "git rebase -i";
+          grh = "git reset HEAD";
+          grhh = "git reset --hard HEAD";
+          gcp = "git cherry-pick";
+          gcpa = "git cherry-pick --abort";
+          gcpc = "git cherry-pick --continue";
+          grv = "git remote -v";
+          gra = "git remote add";
+          grrm = "git remote remove";
+          gcl = "git clone";
+          gsh = "git show";
+          gstaa = "git stash apply";
+          gstc = "git stash clear";
+          gstd = "git stash drop";
+          gstl = "git stash list";
+          gstp = "git stash pop";
+          gsts = "git stash show --patch";
+          gclean = "git clean -fd";
+          gcf = "git config --list";
           glog = "git log --oneline --graph";
+          gloga = "git log --oneline --graph --decorate --all";
           lg = "lazygit";
+
+          # Tmuxinator
+          mux = "tmuxinator";
+          muxp = "mux-session personal";
+          muxw = "mux-session work";
+          muxk = "mux-session komp";
+          muxb = "mux-session blackrack";
+          muxd = "tmux-doctor";
+          muxdoctor = "tmux-doctor";
+          tsave = "tmux-save";
+          tsavelight = "tmux-save --light";
+          trestore = "tmux-restore";
+          tresume = "tmux-resume";
+          tlast = "tmux-last";
+
+          # Remote tmux — attach with synced config
+          ssht = "bash $HOME/.dotfiles/system/scripts/tmux-auto-ssh.sh";
+          tmux-sync = "bash $HOME/.dotfiles/system/scripts/tmux-sync-hosts.sh";
+
+          # Security — install gitleaks pre-commit hook in existing repos
+          git-secrets-install = ''[ -d .git ] && cp ~/.git-templates/hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit && echo "gitleaks pre-commit hook installed" || echo "not a git repo"'';
 
           # Nix
           nix = "noglob nix";
@@ -141,17 +247,24 @@
           emptytrash = "trash-empty";
           restoretrash = "trash-restore";
 
-          # AI Tools
-          gemini = "export GOOGLE_CLOUD_PROJECT=\"wired-effort-416222\" && npx -y https://github.com/google-gemini/gemini-cli";
-          claudia = "npx -y @anthropic-ai/claude-code@latest";
-          qwen = "npx -y @qwen-code/qwen-code@latest";
-          ccr-code = "npx -y @musistudio/claude-code-router start";
+          # AI Tools — routed through ai-env (central secret router).
+          # Each profile loads its keys from Infisical or ~/.config/ai-keys.env.
+          opencode = "ai-env opencode";
+          aider = "ai-env aider";
+          gemini = "ai-env gemini";
+          qwen = "ai-env qwen";
+          claudia = "ai-env claudia";
+          ccr-code = "ai-env ccr";
+          # ccr-ui / claude-code-temp don't need model keys directly
           ccr-ui = "npx -y @musistudio/claude-code-router ui";
           claude-code-temp = "npx -y claude-code-templates@latest";
+          ai-audit = "ai-secrets-audit";
 
-          # Claude Code with separate config directories
-          claude-work = "CLAUDE_CONFIG_DIR=~/.claude-work claude";
-          claude-personal = "CLAUDE_CONFIG_DIR=~/.claude-personal claude";
+          # Claude Code with separate config directories (all via ai-env for keys)
+          claude-work = "CLAUDE_CONFIG_DIR=~/.claude-work ai-env claude";
+          claude-very = "CLAUDE_CONFIG_DIR=~/.claude-very ai-env claude";
+          claude-personal = "CLAUDE_CONFIG_DIR=~/.claude-personal ai-env claude";
+          claude-overflow = "CLAUDE_CONFIG_DIR=~/.claude-overflow claude";
 
           # System monitoring (cross-platform)
           sysmon = "btop";
@@ -167,11 +280,19 @@
 
           # NixOS system management
           nixos-rebuild = "noglob nixos-rebuild";
+          # Runs darwin-rebuild (macOS), nixos-rebuild (NixOS), or home-manager (else; DOTFILES_PROFILE default ubuntu-dev)
           rebuild = "bash $HOME/.dotfiles/system/scripts/rebuild";
+          hm-switch = "bash $HOME/.dotfiles/system/scripts/rebuild";
+          vault-skills-sync = "bash $HOME/.dotfiles/system/scripts/vault-skills-sync";
+          vault-skills-pull = "bash $HOME/.dotfiles/system/scripts/vault-skills-sync --pull";
+          mcp-sync = "bash $HOME/.dotfiles/system/scripts/mcp-sync";
+          mcp-sync-all = "bash $HOME/.dotfiles/system/scripts/mcp-sync --all";
+          rebuild-home = "bash $HOME/.dotfiles/system/scripts/rebuild";
           rebuild-proxmox = "bash $HOME/.dotfiles/system/scripts/rebuild nixos-proxmox";
           rebuild-test = "sudo nixos-rebuild test --flake '/home/felipe/.dotfiles#default'";
           rebuild-boot = "sudo nixos-rebuild boot --flake '/home/felipe/.dotfiles#default'";
           update-flake = "nix flake update --flake /home/felipe/.dotfiles/";
+          update-claude-desktop = "cd /home/felipe/.local/share/claude-desktop && git pull && bash install.sh";
           rebuild-cloud = "NIX_SSHOPTS='-i /home/felipe/.ssh/nixos-cloud-desktop-key.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no' nixos-rebuild switch --flake \"$HOME/.dotfiles/deploy/nixos-cloud#nixos-installer\" --target-host root@nixos-cloud --build-host root@nixos-cloud";
           ec2on = "AWS_PROFILE=nixos-deployer aws ec2 start-instances --instance-ids i-08796d84d584d092f";
           ec2off = "AWS_PROFILE=nixos-deployer aws ec2 stop-instances --instance-ids i-08796d84d584d092f";
@@ -191,7 +312,7 @@
           fm = "dolphin";
 
           # System monitoring (Linux-specific)
-          sysinfo = "neofetch";
+          sysinfo = "fastfetch";
           temps = "sensors";
           processes = "procs --tree";
           disk-usage = "duf";
@@ -221,6 +342,25 @@
           start = "sudo systemctl start";
           status = "sudo systemctl status";
         };
+    };
+
+    bash = {
+      enable = true;
+      enableCompletion = true;
+      shellAliases = config.programs.zsh.shellAliases;
+      initExtra = ''
+        if [[ $- != *i* ]]; then
+          return
+        fi
+
+        # Keep readline responsive and match the interactive shell defaults.
+        stty -ixon -ixoff 2>/dev/null || true
+        export DISABLE_AUTO_TITLE="true"
+
+        eval "$(${pkgs.starship}/bin/starship init bash)"
+        eval "$(${pkgs.zoxide}/bin/zoxide init bash)"
+        eval "$(${pkgs.atuin}/bin/atuin init bash --disable-up-arrow)"
+      '';
     };
 
     starship = {
@@ -302,15 +442,14 @@
         continuum
         battery
         cpu
+        tmux-sessionx
+        tmux-thumbs
+        tmux-fzf
       ];
       extraConfig = ''
-        # Prefix: Backtick (`) - primary, Ctrl-Space and Ctrl-b - secondary
-        set -g prefix `
-        set -g prefix2 C-Space
-        set -ga prefix2 C-b
-        bind ` send-prefix
+        # Prefix: Ctrl+Space locally; Ctrl+b passes through naturally to nested remote tmux
+        set -g prefix C-Space
         bind C-Space send-prefix
-        bind C-b send-prefix
 
         # Better defaults
         # Advertise tmux-256color and truecolor capabilities (tmux ≥ 3.3)
@@ -342,14 +481,17 @@
 
         # Vi mode
         set-window-option -g mode-keys vi
-         # Integrate copy with system clipboard; prefer wl-copy, fallback to xclip
+         # Integrate copy with system clipboard and tmux buffer.
          set -s set-clipboard on
          bind-key -T copy-mode-vi 'v' send -X begin-selection
-         bind-key -T copy-mode-vi 'y' send -X copy-pipe-and-cancel 'wl-copy 2>/dev/null || xclip -selection clipboard -in 2>/dev/null || pbcopy'
+         bind-key -T copy-mode-vi 'y' send -X copy-pipe-and-cancel '~/.local/bin/tmux-copy'
          bind-key -T copy-mode-vi 'r' send -X rectangle-toggle
          # Copy on mouse selection (drag release) for both key tables
-         bind-key -T copy-mode-vi MouseDragEnd1Pane send -X copy-pipe-and-cancel 'wl-copy 2>/dev/null || xclip -selection clipboard -in 2>/dev/null || pbcopy'
-         bind-key -T copy-mode MouseDragEnd1Pane send -X copy-pipe-and-cancel 'wl-copy 2>/dev/null || xclip -selection clipboard -in 2>/dev/null || pbcopy'
+         bind-key -T copy-mode-vi MouseDragEnd1Pane send -X copy-pipe-and-cancel '~/.local/bin/tmux-copy'
+         bind-key -T copy-mode MouseDragEnd1Pane send -X copy-pipe-and-cancel '~/.local/bin/tmux-copy'
+         # Prefix+] / Prefix+P paste from system clipboard, falling back to tmux buffer.
+         bind ] run-shell -b "~/.local/bin/tmux-paste --tmux-send"
+         bind P run-shell -b "~/.local/bin/tmux-paste --tmux-send"
 
         # Keyboard shortcuts (vim-style)
         # Move between panes with prefix + h/j/k/l
@@ -375,7 +517,7 @@
 
          # Show pane headers with index, command, and path
          set -g pane-border-status top
-         set -g pane-border-format " #{pane_index} #{pane_current_command} #{=-40:pane_current_path}"
+         set -g pane-border-format " #{pane_index} #{?#{!=:#{pane_title},},#{=-15:pane_title} · ,}#{pane_current_command} #{=-30:pane_current_path}"
 
         # Pane resizing (shift variants kept as an alternative)
         bind -r H resize-pane -L 5
@@ -384,6 +526,11 @@
         bind -r L resize-pane -R 5
 
         # Window navigation
+        # Keep the conventional previous-window action on Prefix+p. tmux-floax
+        # claimed this key for a floating shell, so it is intentionally absent
+        # from the plugin list above.
+        unbind p
+        bind p previous-window
         bind -r C-h select-window -t :-
         bind -r C-l select-window -t :+
         # Alt/Cmd + number to switch windows (like browser tabs)
@@ -396,6 +543,8 @@
         bind -n M-7 select-window -t 7
         bind -n M-8 select-window -t 8
         bind -n M-9 select-window -t 9
+        bind -n M-0 select-window -t 10
+        bind -n M-w choose-tree -Zw
 
         # Session management
         # Click session name in status-left to open session switcher
@@ -437,7 +586,9 @@
          # mauve: #cba6f7 | pink: #f5c2e7 | teal: #94e2d5
 
          set -g status-position top
-         set -g status-interval 5
+         # A shared tmux bar does not need sub-minute polling. This keeps the
+         # CPU widget cheap even when many Claude/Codex panes are open.
+         set -g status-interval 60
          set -g status-justify centre
 
          # Status bar base - transparent feel with margins
@@ -445,25 +596,34 @@
          set -g status-left-length 100
          set -g status-right-length 100
 
-         # Left: Session with icon and rounded pill
-         set -g status-left "#[fg=#1e1e2e,bg=#cba6f7,bold]  #S #[fg=#cba6f7,bg=#1e1e2e]   "
+         # Left: Session color changes per session (personal=mauve, work=green, default=blue)
+         set -g status-left "#{?#{==:#S,personal},#[fg=#1e1e2e,bg=#cba6f7,bold]  #S #[fg=#cba6f7,bg=#1e1e2e],#{?#{==:#S,work},#[fg=#1e1e2e,bg=#a6e3a1,bold]  #S #[fg=#a6e3a1,bg=#1e1e2e],#[fg=#1e1e2e,bg=#89b4fa,bold]  #S #[fg=#89b4fa,bg=#1e1e2e]}}   "
 
-         # Right: Directory + Git + Time with pills
-         set -g status-right "#[fg=#313244,bg=#1e1e2e]#[fg=#cdd6f4,bg=#313244]  #{b:pane_current_path} #[fg=#1e1e2e,bg=#313244]#[fg=#313244,bg=#1e1e2e] #[fg=#45475a,bg=#1e1e2e]#[fg=#a6adc8,bg=#45475a]  %H:%M #[fg=#89b4fa,bg=#45475a]#[fg=#1e1e2e,bg=#89b4fa]  %d %b #[fg=#89b4fa,bg=#1e1e2e]"
+         # Right: Prefix / Copy indicators + CPU + Directory + Time + Date
+         set -g status-right "#{?client_prefix,#[fg=#1e1e2e,bg=#fab387,bold]  PREFIX  #[fg=#fab387,bg=#1e1e2e],}#{?#{==:#{pane_mode},copy-mode},#[fg=#1e1e2e,bg=#f5c2e7,bold]  COPY  #[fg=#f5c2e7,bg=#1e1e2e],}#[fg=#45475a,bg=#1e1e2e]#[fg=#1e1e2e,bg=#f9e2af]  #{cpu_percentage} #[fg=#f9e2af,bg=#1e1e2e]#[fg=#313244,bg=#1e1e2e]#[fg=#cdd6f4,bg=#313244]  #{b:pane_current_path} #[fg=#1e1e2e,bg=#313244]#[fg=#313244,bg=#1e1e2e] #[fg=#45475a,bg=#1e1e2e]#[fg=#a6adc8,bg=#45475a]  %H:%M #[fg=#89b4fa,bg=#45475a]#[fg=#1e1e2e,bg=#89b4fa]  %d %b #[fg=#89b4fa,bg=#1e1e2e]"
 
          # Window status - clean pills with spacing
          set -g window-status-separator "  "
-         set -g window-status-format "#[fg=#313244,bg=#1e1e2e]#[fg=#6c7086,bg=#313244] #I  #W #[fg=#313244,bg=#1e1e2e]"
-         set -g window-status-current-format "#[fg=#a6e3a1,bg=#1e1e2e]#[fg=#1e1e2e,bg=#a6e3a1,bold] #I  #W#{?window_zoomed_flag,  ,} #[fg=#a6e3a1,bg=#1e1e2e]"
+         set -g window-status-format "#[fg=#313244,bg=#1e1e2e]#[fg=#6c7086,bg=#313244] #I  #W #{?window_zoomed_flag,#[fg=#f9e2af]Z ,}#[fg=#313244,bg=#1e1e2e]"
+         set -g window-status-current-format "#[fg=#a6e3a1,bg=#1e1e2e]#[fg=#1e1e2e,bg=#a6e3a1,bold] #I  #W #{?window_zoomed_flag,#[fg=#1e1e2e]🔍 ,}#[fg=#a6e3a1,bg=#1e1e2e]"
+         set -g window-status-activity-style "fg=#fab387,bg=#1e1e2e"
+         set -g window-status-bell-style "fg=#f38ba8,bg=#1e1e2e,bold"
 
-         # Pane borders - subtle
-         set -g pane-border-style "fg=#313244"
-         set -g pane-active-border-style "fg=#cba6f7"
-         set -g pane-border-lines "single"
+         # Pane borders - unmistakable separation from content
+         set -g pane-border-lines double
+         set -g pane-border-style "fg=#a6adc8"
+         set -g pane-active-border-style "fg=#89b4fa,bold"
+         # Colored pane headers that match the border palette
+         set -g pane-border-format "#[fg=#6c7086] #{pane_index} #[fg=#a6adc8]#{pane_current_command}#[fg=#6c7086] · #{=-20:pane_current_path} "
 
          # Message and mode styling
          set -g message-style "fg=#cdd6f4,bg=#313244"
+         set -g message-command-style "fg=#cdd6f4,bg=#45475a,bold"
          set -g mode-style "fg=#1e1e2e,bg=#f5c2e7"
+         set -g menu-style "fg=#cdd6f4,bg=#313244"
+         set -g menu-selected-style "fg=#1e1e2e,bg=#89b4fa,bold"
+         set -g menu-border-style "fg=#45475a"
+         set -g menu-border-lines double
 
          # Clock
          set -g clock-mode-colour "#89b4fa"
@@ -498,6 +658,12 @@
         # Menus (built-in display-menu)
         bind m run-shell -b "~/.local/bin/tmux-menus"
 
+        # Broadcast: toggle sync to all panes in current window
+        bind * setw synchronize-panes \; display-message "Sync panes: #{?pane_synchronized,ON,OFF}"
+
+        # Broadcast: send command to all SSH panes in session via popup
+        bind M run-shell -b "~/.local/bin/tmux-broadcast"
+
         # Sidebar toggle (yazi/ranger) - alternative: prefix+F for floax
         bind b run-shell -b "~/.local/bin/tmux-sidebar toggle"
         bind B run-shell -b "~/.local/bin/tmux-sidebar open 40"
@@ -506,23 +672,13 @@
         bind e run-shell -b "~/.local/bin/tmux-extracto"
 
         # Session restore
-        set -g @continuum-restore 'on'
-        set -g @continuum-save-interval '15'
+        set -g @resurrect-capture-pane-contents 'on'
+        set -g @resurrect-pane-contents-area 'full'
+        set -g @resurrect-processes 'ssh mosh-client psql mysql sqlite3 k9s lazygit btop htop yazi ranger lf "~kubectl" "~journalctl" "~nix develop" "~claude" "~gemini" "~qwen" "~opencode" "~hermes" "~nvim" "~vim" "~npm" "~yarn" "~pnpm" "~bun" "~node" "~python"'
+        set -g @continuum-restore 'off'
+        set -g @continuum-save-interval '0'
 
-        # ============================================
-        # TPM PLUGINS (installed via Tmux Plugin Manager)
-        # ============================================
-
-        # TPM Plugin list
-        set -g @plugin 'tmux-plugins/tpm'
-        set -g @plugin 'omerxx/tmux-sessionx'
-        set -g @plugin 'fcsonline/tmux-thumbs'
-        set -g @plugin 'omerxx/tmux-floax'
-        set -g @plugin 'sainnhe/tmux-fzf'
-
-        # ============================================
-        # PLUGIN CONFIGURATIONS
-        # ============================================
+        # Plugin configurations (plugins are installed by Home Manager/Nix)
 
         # tmux-sessionx: Advanced session manager
         set -g @sessionx-bind 'o'
@@ -533,53 +689,90 @@
         set -g @sessionx-preview-enabled 'true'
         set -g @sessionx-custom-paths-subdirectories 'false'
 
-        # tmux-floax: Floating terminal
-        set -g @floax-bind 'F'
-        set -g @floax-width '80%'
-        set -g @floax-height '80%'
-        set -g @floax-border-color 'magenta'
-        set -g @floax-text-color 'blue'
-        set -g @floax-change-path 'true'
-
         # tmux-thumbs: Copy/paste with keyboard hints
         set -g @thumbs-key 'Space'
-        set -g @thumbs-command 'echo -n {} | (wl-copy 2>/dev/null || xclip -selection clipboard -in 2>/dev/null || pbcopy)'
+        set -g @thumbs-command 'echo -n {} | ~/.local/bin/tmux-copy'
         set -g @thumbs-upcase-command 'echo -n {} | xdg-open'
 
         # tmux-fzf: FZF integration for tmux
         TMUX_FZF_LAUNCH_KEY="C-f"
         TMUX_FZF_ORDER="session|window|pane|command|keybinding|clipboard|process"
 
-        # Initialize TPM (keep this at the very bottom)
-        run '~/.tmux/plugins/tpm/tpm'
-
-        # Show neofetch on session creation
-        set-hook -g session-created 'run-shell "${pkgs.neofetch}/bin/neofetch"'
+        # Show fastfetch on session creation
+        set-hook -ga session-created 'run-shell "${pkgs.fastfetch}/bin/fastfetch"'
       '';
     };
   };
 
-  # Manage SSH config via Home Manager: keep connections alive and
-  # preserve existing host entries.
-  programs.ssh = {
-    enable = true;
-    enableDefaultConfig = false;
-    matchBlocks = {
-      "*" = {
-        identityFile = ["~/.ssh/id_ed25519"];
-        serverAliveInterval = 30;
-        serverAliveCountMax = 3;
-        extraOptions = {
-          TCPKeepAlive = "yes";
-          AddKeysToAgent = "yes";
-          IdentityAgent = "~/.1password/agent.sock";
-        };
-      };
-      "ec2-swarm" = {
-        hostname = "23.23.253.44";
-        user = "ubuntu";
-        identityFile = ["~/.ssh/showcase-staging.pem"];
-      };
+  # Tmuxinator projects: every export/tmuxinator/*.yml is linked out-of-store so
+  # a new project file needs no rebuild and no per-host edit.
+  xdg.configFile =
+    lib.mapAttrs' (
+      name: _:
+        lib.nameValuePair "tmuxinator/${name}" {
+          source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/export/tmuxinator/${name}";
+        }
+    )
+    (lib.filterAttrs (name: type: type == "regular" && lib.hasSuffix ".yml" name)
+      (builtins.readDir ../../../export/tmuxinator));
+
+  # Tmux session persistence across reboots
+  # systemd (Linux): light periodic save + full save on shutdown
+  systemd.user.services.tmux-resurrect-save = {
+    Unit = {
+      Description = "Save tmux sessions for resurrect";
+    };
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.bash}/bin/bash -lc '${config.home.homeDirectory}/.local/bin/tmux-save --light >/dev/null 2>&1 || true'";
+      Nice = 10;
+      IOSchedulingClass = "idle";
+      CPUQuota = "25%";
+      CPUWeight = 20;
+    };
+  };
+
+  systemd.user.timers.tmux-resurrect-save = {
+    Unit = {
+      Description = "Periodic tmux session save";
+    };
+    Timer = {
+      OnActiveSec = "15m";
+      OnBootSec = "10m";
+      OnUnitInactiveSec = "15m";
+      Persistent = true;
+    };
+    Install = {
+      WantedBy = ["timers.target"];
+    };
+  };
+
+  systemd.user.services.tmux-resurrect-shutdown = {
+    Unit = {
+      Description = "Save tmux sessions before shutdown";
+      Before = ["shutdown.target"];
+      DefaultDependencies = false;
+    };
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.bash}/bin/bash -lc '${config.home.homeDirectory}/.local/bin/tmux-save >/dev/null 2>&1 || true'";
+    };
+    Install = {
+      WantedBy = ["shutdown.target"];
+    };
+  };
+
+  # launchd (macOS): save every 5 minutes
+  launchd.agents.tmux-resurrect-save = {
+    enable = pkgs.stdenv.isDarwin;
+    config = {
+      ProgramArguments = [
+        "/bin/sh"
+        "-c"
+        "$HOME/.local/bin/tmux-save --light >/dev/null 2>&1 || true"
+      ];
+      StartInterval = 900;
+      RunAtLoad = true;
     };
   };
 
@@ -664,420 +857,60 @@
   '';
 
   # tmux-autoreload: watch config and source-file on change
-  home.file.".local/bin/tmux-autoreload" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      set -euo pipefail
-
-      conf="''${XDG_CONFIG_HOME:-$HOME/.config}/tmux/tmux.conf"
-      [[ -f "$conf" ]] || conf="$HOME/.tmux.conf"
-      [[ -f "$conf" ]] || exit 0
-
-      # Prevent duplicate watchers per user+conf
-      mkdir -p "''${XDG_CACHE_HOME:-$HOME/.cache}"
-      lock="''${XDG_CACHE_HOME:-$HOME/.cache}/tmux-autoreload-$(printf '%s' "$conf" | sha1sum | awk '{print $1}').pid"
-      if [[ -f "$lock" ]]; then
-        oldpid=$(cat "$lock" 2>/dev/null || true)
-        if [[ -n "''${oldpid:-}" ]] && kill -0 "$oldpid" 2>/dev/null; then
-          exit 0
-        fi
-      fi
-      echo "$$" > "$lock"
-      trap 'rm -f "$lock"' EXIT
-
-      # Function to reload config
-      reload() {
-        tmux source-file "$conf" \; display-message "tmux.conf autoreloaded"
-      }
-
-      # Prefer inotify if available; fallback to polling
-      if command -v inotifywait >/dev/null 2>&1; then
-        # Quietly listen to writes/attrib changes
-        while inotifywait -qq -e close_write,attrib,move,create "$(dirname "$conf")"; do
-          # Only react if target file changed
-          # shellcheck disable=SC2012
-          if [[ -f "$conf" ]]; then
-            reload || true
-          fi
-        done
-      else
-        last="$(date +%s)"
-        _mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
-        if [[ -f "$conf" ]]; then last=$(_mtime "$conf"); fi
-        while sleep 2; do
-          now=$(_mtime "$conf")
-          if [[ "$now" != "$last" ]]; then
-            last="$now"
-            reload || true
-          fi
-        done
-      fi
-    '';
-  };
+  home.file.".local/bin/tmux-autoreload".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-autoreload";
 
   # Git autofetch for active pane repo (lightweight alternative to a plugin)
-  home.file.".local/bin/tmux-git-autofetch" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      set -euo pipefail
-      [[ "''${TMUX_GIT_AUTOFETCH:-1}" = 1 ]] || exit 0
-      dir=$(tmux display -p -F '#{pane_current_path}')
-      if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$dir")
-        cache="''${XDG_CACHE_HOME:-$HOME/.cache}/tmux-git-autofetch"
-        mkdir -p "$cache"
-        key=$(printf '%s' "$top" | sha1sum | awk '{print $1}')
-        stamp="$cache/$key.stamp"
-        now=$(date +%s)
-        interval="''${TMUX_GIT_AUTOFETCH_INTERVAL:-600}"
-        last=0; [[ -f "$stamp" ]] && last=$(cat "$stamp" 2>/dev/null || echo 0)
-        if [[ $((now - last)) -ge $interval ]]; then
-          ( git -C "$top" fetch --all -p -q >/dev/null 2>&1 && echo "$now" > "$stamp" ) &
-        fi
-      fi
-    '';
-  };
+  home.file.".local/bin/tmux-git-autofetch".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-git-autofetch";
 
   # Simple tmux menus using built-in display-menu
-  home.file.".local/bin/tmux-menus" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      set -euo pipefail
-      tmux display-menu -T "#[align=centre] TMUX Menu" \
-        "New window" n "new-window -c '#{pane_current_path}'" \
-        "Rename window" , "command-prompt -I '#W' 'rename-window %%'" \
-        "-" "-" \
-        "Split horizontal" h "split-window -h -c '#{pane_current_path}'" \
-        "Split vertical" v "split-window -v -c '#{pane_current_path}'" \
-        "Kill pane" x "kill-pane" \
-        "-" "-" \
-        "Git status (new win)" g "new-window -n git -c '#{pane_current_path}' 'git status'" \
-        "Toggle sidebar" b "run-shell '~/.local/bin/tmux-sidebar toggle'" \
-        "fzf switcher" f "run-shell '~/.local/bin/tmux-fzf-switch all'" \
-        "Extract items" e "run-shell '~/.local/bin/tmux-extracto'" \
-        "-" "-" \
-        "Reload config" r "source-file ~/.config/tmux/tmux.conf \; display-message 'Reloaded!'" \
-        "Detach" d "detach-client" \
-        "Kill window" X "kill-window"
-    '';
-  };
+  home.file.".local/bin/tmux-menus".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-menus";
 
   # Sidebar toggle for file manager (yazi/ranger/lf)
-  home.file.".local/bin/tmux-sidebar" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      set -euo pipefail
-      mode="''${1:-toggle}"
-      width="''${2:-50%}"
-      dir=$(tmux display -p -F '#{pane_current_path}')
-      existing=$(tmux list-panes -F '#{pane_id}::#{pane_title}' | awk -F:: '$2=="SIDEBAR"{print $1; exit}')
-      case "$mode" in
-        toggle)
-          if [[ -n "''${existing:-}" ]]; then tmux kill-pane -t "$existing"; exit 0; fi
-          set -- open "$width" ;;
-      esac
-      if [[ "''${1:-}" = open ]]; then
-        if [[ "$width" == *% ]]; then
-          size="''${width%\%}"
-          pid=$(tmux split-window -h -p "$size" -c "$dir" -P -F '#{pane_id}')
-        else
-          pid=$(tmux split-window -h -l "$width" -c "$dir" -P -F '#{pane_id}')
-        fi
-        tmux select-pane -T SIDEBAR -t "$pid"
-        tmux send-keys -t "$pid" 'yazi || ranger || lf' C-m
-        exit 0
-      fi
-      if [[ "''${1:-}" = close ]]; then
-        [[ -n "''${existing:-}" ]] && tmux kill-pane -t "$existing"
-      fi
-    '';
-  };
+  home.file.".local/bin/tmux-sidebar".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-sidebar";
 
   # Extract items from scrollback and open or copy
-  home.file.".local/bin/tmux-extracto" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      set -euo pipefail
-      if ! HISTORY=$(tmux capture-pane -J -S -10000 -p 2>/dev/null); then
-        tmux display-message "Unable to capture pane history"; exit 0; fi
-      command -v fzf >/dev/null 2>&1 || { tmux display-message "fzf not installed"; exit 0; }
-
-      urls=$(printf '%s\n' "$HISTORY" | grep -Eo 'https?://[^[:space:]]+' | sed -E 's/[)\]\.,;:!\?"]+$//' | sed 's/^/URL\t/')
-      emails=$(printf '%s\n' "$HISTORY" | grep -Eo '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' | sed 's/^/EMAIL\t/')
-      shas=$(printf '%s\n' "$HISTORY" | grep -Eo '\b[0-9a-f]{7,40}\b' | sed 's/^/SHA\t/')
-      paths=$(printf '%s\n' "$HISTORY" | grep -Eo '(/[^[:space:]]+)' | sed 's/^/PATH\t/')
-
-      items=$(printf '%s\n%s\n%s\n%s\n' "$urls" "$emails" "$shas" "$paths" | sed '/^$/d' | sort -u)
-      [[ -z "$items" ]] && { tmux display-message "No items found"; exit 0; }
-
-      sel=$(printf '%s\n' "$items" | fzf --height 40% --border --with-nth=1,2 --delimiter='\t' --prompt='Extracto> ' || true)
-      [[ -z "$sel" ]] && exit 0
-      type=$(printf '%s' "$sel" | awk -F '\t' '{print $1}')
-      val=$(printf '%s' "$sel" | cut -f2-)
-
-      case "$type" in
-        URL)
-          if command -v xdg-open >/dev/null 2>&1; then nohup xdg-open "$val" >/dev/null 2>&1 &
-          elif command -v sensible-browser >/dev/null 2>&1; then nohup sensible-browser "$val" >/dev/null 2>&1 &
-          elif command -v open >/dev/null 2>&1; then nohup open "$val" >/dev/null 2>&1 &
-          else printf '%s' "$val" | wl-copy 2>/dev/null || printf '%s' "$val" | xclip -selection clipboard -in 2>/dev/null || true; fi
-          ;;
-        EMAIL|SHA|PATH)
-          printf '%s' "$val" | wl-copy 2>/dev/null || printf '%s' "$val" | xclip -selection clipboard -in 2>/dev/null || true
-          tmux display-message "Copied to clipboard"
-          ;;
-      esac
-    '';
-  };
+  home.file.".local/bin/tmux-extracto".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-extracto";
 
   # fzf-tmux-url helper script
-  home.file.".local/bin/fzf-tmux-url" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      set -euo pipefail
-
-      # Capture up to 10000 lines from pane history, join wrapped lines
-      if ! HISTORY=$(tmux capture-pane -J -S -10000 -p 2>/dev/null); then
-        tmux display-message "Unable to capture pane history"
-        exit 0
-      fi
-
-      # Extract URLs, trim common trailing punctuation, dedupe
-      URLS=$(printf '%s\n' "$HISTORY" \
-        | grep -Eo 'https?://[^[:space:]]+' \
-        | sed -E 's/[)\]\.,;:!\?"]+$//' \
-        | sort -u)
-
-      if [[ -z "''${URLS}" ]]; then
-        tmux display-message "No URLs found in scrollback"
-        exit 0
-      fi
-
-      if ! command -v fzf >/dev/null 2>&1; then
-        tmux display-message "fzf not installed"
-        exit 0
-      fi
-
-      # Pick one or more URLs
-      SELECTION=$(printf '%s\n' "$URLS" | fzf --multi --height 40% --border --prompt='URLs> ' || true)
-      if [[ -z "''${SELECTION}" ]]; then
-        exit 0
-      fi
-
-      # Open each selected URL using best available opener
-      while IFS= read -r url; do
-        if command -v xdg-open >/dev/null 2>&1; then
-          nohup xdg-open "$url" >/dev/null 2>&1 &
-        elif command -v sensible-browser >/dev/null 2>&1; then
-          nohup sensible-browser "$url" >/dev/null 2>&1 &
-        elif command -v open >/dev/null 2>&1; then
-          nohup open "$url" >/dev/null 2>&1 &
-        else
-          tmux display-message "No URL opener found for: $url"
-        fi
-      done <<< "$SELECTION"
-    '';
-  };
+  home.file.".local/bin/fzf-tmux-url".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/fzf-tmux-url";
 
   # tmux-fzf-switch helper script (sessions/windows/panes)
-  home.file.".local/bin/tmux-fzf-switch" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      set -euo pipefail
-
-      mode="''${1:-all}"
-
-      if ! command -v fzf >/dev/null 2>&1; then
-        tmux display-message "fzf not installed"
-        exit 0
-      fi
-
-      list_sessions() {
-        tmux list-sessions -F '#{session_name}\tS\t#{session_windows} windows'
-      }
-
-      list_windows() {
-        tmux list-windows -a -F '#{session_name}:#{window_index}\tW\t#{window_name} (#{window_panes} panes)'
-      }
-
-      list_panes() {
-        tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index}\tP\t#{pane_current_command}  #{pane_current_path}'
-      }
-
-      pick_and_go() {
-        local sel target type
-        sel=$(cat | fzf --prompt="''${1}> " --height 40% --border --with-nth=1,3 --delimiter='\t' --ansi || true)
-        [[ -z "$sel" ]] && exit 0
-        target=$(printf '%s' "$sel" | awk -F '\t' '{print $1}')
-        type=$(printf '%s' "$sel" | awk -F '\t' '{print $2}')
-        case "$type" in
-          S) tmux switch-client -t "$target" ;;
-          W) tmux select-window -t "$target" ;;
-          P) tmux select-pane -t "$target" ; tmux display-message "Switched to $target" ;;
-        esac
-      }
-
-      case "$mode" in
-        sessions)
-          list_sessions | pick_and_go Sessions
-          ;;
-        windows)
-          list_windows | pick_and_go Windows
-          ;;
-        panes)
-          list_panes | pick_and_go Panes
-          ;;
-        all)
-          {
-            list_sessions
-            list_windows
-            list_panes
-          } | pick_and_go Switch
-          ;;
-        *)
-          tmux display-message "Unknown mode: $mode"
-          ;;
-      esac
-    '';
-  };
+  home.file.".local/bin/tmux-fzf-switch".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-fzf-switch";
 
   # tmux-sessionizer: pick a directory and jump/create a session for it
-  home.file.".local/bin/tmux-sessionizer" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      set -euo pipefail
+  home.file.".local/bin/tmux-sessionizer".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-sessionizer";
 
-      notify() {
-        if [[ -n "''${TMUX:-}" ]]; then
-          tmux display-message "$*"
-        else
-          printf '%s\n' "$*" >&2
-        fi
-      }
+  # mux-session: declarative tmuxinator sessions by default; resurrect is explicit.
+  home.file.".local/bin/mux-session".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/mux-session";
 
-      if ! command -v tmux >/dev/null 2>&1; then
-        notify "tmux not found"
-        exit 1
-      fi
+  # tmux-doctor: quick health checks for tmux, tmuxinator, resurrect, clipboard, and k8s.
+  home.file.".local/bin/tmux-doctor".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-doctor";
 
-      if ! command -v fzf >/dev/null 2>&1; then
-        notify "fzf not installed"
-        exit 0
-      fi
+  # tmux-copy: copy stdin to system clipboard and tmux buffer.
+  home.file.".local/bin/tmux-copy".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-copy";
 
-      pick_dir() {
-        if command -v zoxide >/dev/null 2>&1; then
-          zoxide query -l
-          return 0
-        fi
-
-        # Fallback: a small set of common roots (cheap scan depth)
-        roots=()
-        for r in "$HOME/dev" "$HOME/code" "$HOME/projects" "$HOME/work" "$HOME"; do
-          [[ -d "$r" ]] && roots+=("$r")
-        done
-        fd -t d -d 4 . "''${roots[@]}" 2>/dev/null | sort -u
-      }
-
-      dir="''${1:-}"
-      if [[ -z "$dir" ]]; then
-        dir="$(pick_dir | fzf --prompt='Session dir> ' --height 40% --border --cycle --exit-0)" || exit 0
-      fi
-      [[ -z "$dir" ]] && exit 0
-
-      # Expand ~ and resolve to an existing directory
-      dir="''${dir/#\\~/$HOME}"
-      [[ -d "$dir" ]] || { notify "Not a directory: $dir"; exit 0; }
-
-      # Prefer the repo root if inside a Git worktree
-      if command -v git >/dev/null 2>&1; then
-        if top="$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null)"; then
-          dir="$top"
-        fi
-      fi
-
-      base="$(basename "$dir")"
-      base="''${base//./_}"
-      base="$(printf '%s' "$base" | tr -cd '[:alnum:]_-')"
-      hash="$(printf '%s' "$dir" | sha1sum | awk '{print substr($1,1,6)}')"
-      session="''${base:-session}-''${hash}"
-
-      if ! tmux has-session -t "$session" 2>/dev/null; then
-        tmux new-session -d -s "$session" -c "$dir"
-      fi
-
-      if [[ -n "''${TMUX:-}" ]]; then
-        tmux switch-client -t "$session"
-      else
-        tmux attach -t "$session"
-      fi
-    '';
-  };
+  # tmux-paste: read system clipboard with tmux buffer fallback.
+  home.file.".local/bin/tmux-paste".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-paste";
 
   # tmux-kube status snippet: show k8s context/namespace if available
-  home.file.".local/bin/tmux-kube" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      set -euo pipefail
-
-      if ! command -v kubectl >/dev/null 2>&1; then
-        exit 0
-      fi
-
-      ctx=$(kubectl config current-context 2>/dev/null || true)
-      [[ -z "$ctx" ]] && exit 0
-
-      ns=$(kubectl config view --minify -o jsonpath='{.contexts[0].context.namespace}' 2>/dev/null || true)
-      [[ -z "$ns" ]] && ns=default
-
-      # Minimal formatting with a kube symbol
-      printf ' ⎈ %s/%s ' "$ctx" "$ns"
-    '';
-  };
+  home.file.".local/bin/tmux-kube".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-kube";
 
   # tmux-git: show Git branch + short status for active pane path
-  home.file.".local/bin/tmux-git" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      set -euo pipefail
-
-      # Active pane path
-      dir=$(tmux display -p -F '#{pane_current_path}')
-      if ! top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null); then
-        exit 0
-      fi
-
-      branch=$(git -C "$dir" symbolic-ref --short -q HEAD 2>/dev/null || git -C "$dir" rev-parse --short HEAD 2>/dev/null || echo '?')
-
-      dirty=""
-      if [[ -n "$(git -C "$dir" status --porcelain=v1 2>/dev/null)" ]]; then
-        dirty='*'
-      fi
-
-      ahead=""; behind=""
-      if upstream=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name @{upstream} 2>/dev/null); then
-        read -r L R < <(git -C "$dir" rev-list --left-right --count "$upstream"...HEAD 2>/dev/null || echo "0 0")
-        [[ ''${R:-0} -gt 0 ]] && ahead="⇡''${R}"
-        [[ ''${L:-0} -gt 0 ]] && behind="⇣''${L}"
-      fi
-
-      bits=()
-      bits+=(" ''${branch}''${dirty}")
-      [[ -n "$ahead" ]] && bits+=("$ahead")
-      [[ -n "$behind" ]] && bits+=("$behind")
-      printf ' %s ' "''${bits[*]}"
-    '';
-  };
+  home.file.".local/bin/tmux-git".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-git";
 
   # tmux-weather: pinned to Armenia, Quindío, Colombia in Celsius
   # home.file.".local/bin/tmux-weather" = {
@@ -1092,6 +925,53 @@
   #     fi
   #   '';
   # };
+
+  # tmux-resurrect-save: save session state before muxp/muxw kill+recreate
+  home.file.".local/bin/tmux-resurrect-save".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-resurrect-save";
+
+  # Thin wrapper: the resurrect store path is the only Nix-time value the
+  # real script needs, so the logic itself lives in system/scripts/tmux-save.
+  home.file.".local/bin/tmux-save" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      export TMUX_RESURRECT_DIR="${pkgs.tmuxPlugins.resurrect}/share/tmux-plugins/resurrect"
+      exec "$HOME/.dotfiles/system/scripts/tmux-save" "$@"
+    '';
+  };
+
+  # Thin wrapper: the resurrect store path is the only Nix-time value the
+  # real script needs, so the logic itself lives in system/scripts/tmux-restore.
+  home.file.".local/bin/tmux-restore" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      export TMUX_RESURRECT_DIR="${pkgs.tmuxPlugins.resurrect}/share/tmux-plugins/resurrect"
+      exec "$HOME/.dotfiles/system/scripts/tmux-restore" "$@"
+    '';
+  };
+
+  home.file.".local/bin/tmux-resume".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-resume";
+
+  # tmux-capture-agents: captura session-ids de agentes por pane (antes de apagar).
+  # codex mantiene su rollout-*.jsonl abierto en un fd -> se lee via /proc y se
+  # extrae el UUID. Asi podemos hacer "codex resume <uuid>" al restaurar.
+  home.file.".local/bin/tmux-capture-agents".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-capture-agents";
+
+  # tmux-restore-agents: corre despues de resurrect. Inyecta "codex resume <uuid>"
+  # en cada pane que tenia un codex corriendo. Poll por pane (resurrect es async).
+  home.file.".local/bin/tmux-restore-agents".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-restore-agents";
+
+  home.file.".local/bin/tmux-last".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-last";
+
+  # tmux-broadcast: send a command to all SSH panes in current session via popup
+  home.file.".local/bin/tmux-broadcast".source =
+    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/system/scripts/tmux-broadcast";
 
   home.sessionVariables =
     {

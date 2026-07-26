@@ -10,8 +10,12 @@ Reload: `Prefix + r` (sources `~/.config/tmux/tmux.conf` inside tmux).
 - Clipboard: mouse drag-select copies on release.
 
 ## Prefixes
-- Primary: `` ` `` (Backtick) - Press twice to send a literal backtick.
-- Secondary: `Ctrl-Space` and `Ctrl-b`
+- Primary: `Ctrl-Space` (see `users/felipe/home-modules/shell.nix` line ~415: `set -g prefix C-Space`).
+- Secondary: `Ctrl-b` (passes through naturally to nested remote tmux sessions).
+- Note: the previous Backtick primary prefix was retired when the Catppuccin
+  theme moved from Mocha to Latte. If your active `tmux.conf` still shows
+  backtick, you're running an old build — rebuild with `home-manager switch
+  --flake ~/.dotfiles#ubuntu-dev` and reload with `Prefix + r`.
 
 ## Pane focus & movement
 - Default tmux: `Prefix + Arrow keys` moves between panes; `Prefix + q` shows pane numbers to jump; `Prefix + o` cycles panes.
@@ -131,6 +135,6 @@ The status bar uses the **Catppuccin Mocha** theme with powerline separators.
 All theme settings are in `users/felipe/home-modules/shell.nix` under the `@catppuccin_*` variables. The plugin auto-generates the status bar styling - avoid manually setting `status-style`, `window-status-format`, etc. as they override the plugin.
 
 ## Requirements
-- `tmux` ≥ 3.2, `fzf`, `wl-copy` or `xclip`; optional: `git`, `btop`, `yazi`, `zoxide`, `neofetch`.
+- `tmux` ≥ 3.2, `fzf`, `wl-copy` or `xclip`; optional: `git`, `btop`, `yazi`, `zoxide`, `fastfetch`.
 - **TPM**: Tmux Plugin Manager for plugin support
 - **Nerd Font**: JetBrains Mono Nerd Font for powerline separators

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+OUT="$HOME/.tmux/resurrect/agent_sessions.tsv"
+tmp="$(mktemp)"
+: > "$tmp"
+
+sep="$(printf '\t')"
+fmt="#{session_name}:#{window_index}.#{pane_index}${sep}#{pane_tty}${sep}#{pane_current_path}${sep}#{pane_current_command}${sep}#{pane_pid}"
+
+while IFS="$sep" read -r target tty path cmd pid; do
+  [[ -n "${tty:-}" && "${tty:-}" != "/dev/null" ]] || continue
+  agent=""
+  sid=""
+  case "$cmd" in
+    codex)
+      for cpid in $(pgrep -x codex 2>/dev/null || true); do
+        fd0="$(readlink "/proc/$cpid/fd/0" 2>/dev/null || true)"
+        [[ "$fd0" == "$tty" ]] || continue
+        for fdl in /proc/$cpid/fd/*; do
+          tgt="$(readlink "$fdl" 2>/dev/null || true)"
+          case "$tgt" in
+            *rollout-*.jsonl)
+              agent="codex"
+              sid="$(basename "$tgt" | sed -E 's/^rollout-[0-9T:+-]*-([0-9a-f-]+)\.jsonl$/\1/')"
+              break
+              ;;
+          esac
+        done
+        [[ -n "$sid" ]] && break
+      done
+      ;;
+  esac
+  if [[ -n "$agent" && -n "$sid" ]]; then
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$target" "$cmd" "$path" "$agent" "$sid" "$(date -Iseconds 2>/dev/null || echo unknown)" >> "$tmp"
+  fi
+done < <(tmux list-panes -as -F "$fmt" 2>/dev/null || true)
+
+mv "$tmp" "$OUT"
+count="$(grep -c . "$OUT" 2>/dev/null || echo 0)"
+echo "agentes capturados: $count"

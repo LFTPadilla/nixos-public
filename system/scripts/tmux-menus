@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+tmux display-menu -T "#[align=centre] TMUX Menu" \
+  "New window" n "new-window -c '#{pane_current_path}'" \
+  "Rename window" , "command-prompt -I '#W' 'rename-window %%'" \
+  "-" "-" \
+  "Split horizontal" h "split-window -h -c '#{pane_current_path}'" \
+  "Split vertical" v "split-window -v -c '#{pane_current_path}'" \
+  "Kill pane" x "kill-pane" \
+  "-" "-" \
+  "Git status (new win)" g "new-window -n git -c '#{pane_current_path}' 'git status'" \
+  "Toggle sidebar" b "run-shell '~/.local/bin/tmux-sidebar toggle'" \
+  "fzf switcher" f "run-shell '~/.local/bin/tmux-fzf-switch all'" \
+  "Extract items" e "run-shell '~/.local/bin/tmux-extracto'" \
+  "-" "-" \
+  "Reload config" r "source-file ~/.config/tmux/tmux.conf \; display-message 'Reloaded!'" \
+  "Detach" d "detach-client" \
+  "Kill window" X "kill-window"

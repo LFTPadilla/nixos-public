@@ -45,11 +45,12 @@ fi
 # History entries from cliphist
 while IFS= read -r line; do
   [ -n "$line" ] || continue
-  id="${line%% *}"
-  preview="${line#"$id "}"
+  id="${line%%[[:space:]]*}"
+  preview="${line#"$id"}"
+  preview="${preview#"${preview%%[![:space:]]*}"}"
   menu_lines+=("$preview")
   entry_types+=("hist")
-  entry_ids+=("$id")
+  entry_ids+=("$line")
 done < <(cliphist list || true)
 
 if [ "${#menu_lines[@]}" -eq 0 ]; then
@@ -82,7 +83,7 @@ eid="${entry_ids[$index]}"
 pin_file="$PINNED_DIR/$eid"
 
 paste_from_history() {
-  cliphist decode "$eid" | wl-copy
+  printf '%s\n' "$eid" | cliphist decode | wl-copy
 }
 
 paste_from_pinned() {
@@ -90,7 +91,7 @@ paste_from_pinned() {
 }
 
 toggle_pin_for_history() {
-  content="$(cliphist decode "$eid" || true)"
+  content="$(printf '%s\n' "$eid" | cliphist decode || true)"
   [ -n "$content" ] || return 0
 
   if command -v sha256sum >/dev/null 2>&1; then

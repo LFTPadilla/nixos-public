@@ -7,7 +7,7 @@ This document outlines all security & cleanup steps taken before publishing this
 ### 1. **Gateway Password** ✅
 - **File:** `openclaw.json` (not in repo)
 - **Action:** Removed from repository
-- **Setup:** See `GATEWAY_PASSWORD_SETUP.md`
+- **Setup:** See [gateway-password-setup.md](gateway-password-setup.md)
 - **Why:** Credentials should never be committed to Git
 
 ### 2. **Pulumi AWS Configuration** ✅

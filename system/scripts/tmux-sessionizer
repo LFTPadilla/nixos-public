@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+notify() {
+  if [[ -n "${TMUX:-}" ]]; then
+    tmux display-message "$*"
+  else
+    printf '%s\n' "$*" >&2
+  fi
+}
+
+if ! command -v tmux >/dev/null 2>&1; then
+  notify "tmux not found"
+  exit 1
+fi
+
+if ! command -v fzf >/dev/null 2>&1; then
+  notify "fzf not installed"
+  exit 0
+fi
+
+pick_dir() {
+  if command -v zoxide >/dev/null 2>&1; then
+    zoxide query -l
+    return 0
+  fi
+
+  # Fallback: a small set of common roots (cheap scan depth)
+  roots=()
+  for r in "$HOME/dev" "$HOME/code" "$HOME/projects" "$HOME/work" "$HOME"; do
+    [[ -d "$r" ]] && roots+=("$r")
+  done
+  fd -t d -d 4 . "${roots[@]}" 2>/dev/null | sort -u
+}
+
+dir="${1:-}"
+if [[ -z "$dir" ]]; then
+  dir="$(pick_dir | fzf --prompt='Session dir> ' --height 40% --border --cycle --exit-0)" || exit 0
+fi
+[[ -z "$dir" ]] && exit 0
+
+# Expand ~ and resolve to an existing directory
+dir="${dir/#\\~/$HOME}"
+[[ -d "$dir" ]] || { notify "Not a directory: $dir"; exit 0; }
+
+# Prefer the repo root if inside a Git worktree
+if command -v git >/dev/null 2>&1; then
+  if top="$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null)"; then
+    dir="$top"
+  fi
+fi
+
+base="$(basename "$dir")"
+base="${base//./_}"
+base="$(printf '%s' "$base" | tr -cd '[:alnum:]_-')"
+hash="$(printf '%s' "$dir" | sha1sum | awk '{print substr($1,1,6)}')"
+session="${base:-session}-${hash}"
+
+if ! tmux has-session -t "$session" 2>/dev/null; then
+  tmux new-session -d -s "$session" -c "$dir"
+fi
+
+if [[ -n "${TMUX:-}" ]]; then
+  tmux switch-client -t "$session"
+else
+  tmux attach -t "$session"
+fi

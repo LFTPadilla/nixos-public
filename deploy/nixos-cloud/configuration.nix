@@ -80,7 +80,6 @@
     TERMINAL = "kitty";
     DEFAULT_TERMINAL = "kitty";
     GDK_BACKEND = "x11";
-    KUBECONFIG = "/home/felipe/.kube/k8s-cluster.dev.dman.cloud.yaml";
     BROWSER = "brave"; # Set Brave as default browser
   };
 
@@ -93,11 +92,7 @@
     extraGroups = ["video" "networkmanager" "wheel" "docker" "fuse"];
     shell = pkgs.zsh;
     # Allow SSH login with the same keys as root
-    openssh.authorizedKeys.keys =
-      [
-        "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDOxue2KK9duORxcXOsvguCJ47NuT/lY6ZhSG+RroLa8isH+z+inXQfS/AGoUAPKQ2DSp4qNIMxcH4RoXTOZZFeYSqAnVcjbSQbq8aK5m0g2U41icOeGo/B5lSiSi2CWXEyombcA/1rU8coq0+XGhsemWpU0oaYIzH1ZvVMiRGc5uBhGUbP06jslWAmilyZc0zCRSBzKyLmUqKHibqrUBXvL4UN3MmJ10IZdjCoTXtUqc9KB52HDifEe3pnGlB4OkpscRmeAPs6mGi8qUDmL0DlKWjAIdZK0xTpd+dgHIMDg6iMJJUjE1lDZUM5zggj7g8RAN2sPQQS5gDM0SvOpY/N"
-      ]
-      ++ (args.extraPublicKeys or []);
+    openssh.authorizedKeys.keys = args.extraPublicKeys or [];
     packages = [];
   };
 
@@ -124,12 +119,7 @@
   #   };
   # };
 
-  users.users.root.initialPassword = "2nBgV7NAA3AbZkyXVJhjarETmCKdFcY2qycDn2QwdGLxwT";
-  users.users.root.openssh.authorizedKeys.keys =
-    [
-      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDOxue2KK9duORxcXOsvguCJ47NuT/lY6ZhSG+RroLa8isH+z+inXQfS/AGoUAPKQ2DSp4qNIMxcH4RoXTOZZFeYSqAnVcjbSQbq8aK5m0g2U41icOeGo/B5lSiSi2CWXEyombcA/1rU8coq0+XGhsemWpU0oaYIzH1ZvVMiRGc5uBhGUbP06jslWAmilyZc0zCRSBzKyLmUqKHibqrUBXvL4UN3MmJ10IZdjCoTXtUqc9KB52HDifEe3pnGlB4OkpscRmeAPs6mGi8qUDmL0DlKWjAIdZK0xTpd+dgHIMDg6iMJJUjE1lDZUM5zggj7g8RAN2sPQQS5gDM0SvOpY/N"
-    ]
-    ++ (args.extraPublicKeys or []); # this is used for unit-testing this module and can be removed if not needed
+  users.users.root.openssh.authorizedKeys.keys = args.extraPublicKeys or [];
 
   system.stateVersion = "24.05";
 

@@ -30,6 +30,9 @@
       "awscli"
       "azure-cli"
       "ffmpeg"
+      "syncthing"
+      "uv"
+      "smartmontools"
     ];
 
     # GUI apps via Cask (can't be installed via Nix)
@@ -41,7 +44,9 @@
       "heroic" # Epic Games launcher
       "crossover" # Windows compatibility layer
       "microsoft-teams" # Video conferencing and collaboration
-      # tailscale - installed manually via official installer
+      "zoom" # Video conferencing
+      # "tailscale" # VPN + Taildrop (Share menu); enable “Send Files” in admin console
+      "protonvpn"
       "antigravity"
       # === Terminals & Development ===
       "kitty"
@@ -61,6 +66,9 @@
       "aerospace" # i3/Hyprland-style tiling WM (no accessibility permissions needed)
 
       # === Utilities ===
+      # Discord (official client). Swiftcord is not shipped: unsigned GitHub builds are
+      # blocked by macOS Gatekeeper/XProtect as malware for many users.
+      "discord"
       "macfuse" # FUSE for macOS — required for rclone mount
       "shortcat" # Vimium-style keyboard hints for all of macOS
       "raycast" # Spotlight replacement (like Rofi on Linux)

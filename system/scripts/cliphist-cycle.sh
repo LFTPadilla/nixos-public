@@ -25,7 +25,8 @@ if [ -f "$STATE_FILE" ]; then
   current_id="$(cat "$STATE_FILE" || true)"
 fi
 
-# Get list of entries (IDs only + rest of line for previews)
+# Get list of entries. Keep the full line because `cliphist decode` expects
+# the selected list entry on stdin; using only the numeric ID can paste the ID.
 mapfile -t lines < <(cliphist list || true)
 if [ "${#lines[@]}" -eq 0 ]; then
   exit 0
@@ -34,7 +35,7 @@ fi
 ids=()
 for line in "${lines[@]}"; do
   # First whitespace-separated field is the ID
-  id="${line%% *}"
+  id="${line%%[[:space:]]*}"
   ids+=("$id")
 done
 
@@ -58,7 +59,7 @@ else
 fi
 
 new_id="${ids[$new_index]}"
+new_line="${lines[$new_index]}"
 printf '%s\n' "$new_id" >"$STATE_FILE"
 
-cliphist decode "$new_id" | wl-copy
-
+printf '%s\n' "$new_line" | cliphist decode | wl-copy

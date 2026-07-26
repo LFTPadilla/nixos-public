@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+mode="${1:-toggle}"
+width="${2:-50%}"
+dir=$(tmux display -p -F '#{pane_current_path}')
+existing=$(tmux list-panes -F '#{pane_id}::#{pane_title}' | awk -F:: '$2=="SIDEBAR"{print $1; exit}')
+case "$mode" in
+  toggle)
+    if [[ -n "${existing:-}" ]]; then tmux kill-pane -t "$existing"; exit 0; fi
+    set -- open "$width" ;;
+esac
+if [[ "${1:-}" = open ]]; then
+  if [[ "$width" == *% ]]; then
+    size="${width%\%}"
+    pid=$(tmux split-window -h -p "$size" -c "$dir" -P -F '#{pane_id}')
+  else
+    pid=$(tmux split-window -h -l "$width" -c "$dir" -P -F '#{pane_id}')
+  fi
+  tmux select-pane -T SIDEBAR -t "$pid"
+  tmux send-keys -t "$pid" 'yazi || ranger || lf' C-m
+  exit 0
+fi
+if [[ "${1:-}" = close ]]; then
+  [[ -n "${existing:-}" ]] && tmux kill-pane -t "$existing"
+fi

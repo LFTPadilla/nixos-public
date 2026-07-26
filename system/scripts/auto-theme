@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Auto theme switcher based on time of day
+# Light: 06:00 - 15:59
+# Dark:  16:00 - 05:59
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+DOTFILES_DIR=$(cd "$SCRIPT_DIR/../.." && pwd)
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+THEME_STATE_FILE="$CONFIG_DIR/system-theme"
+
+hour=$(date +%H)
+# remove leading zero for arithmetic comparison
+hour=$((10#$hour))
+
+desired="dark"
+if (( hour >= 6 && hour < 16 )); then
+    desired="light"
+fi
+
+current=""
+if [[ -f "$THEME_STATE_FILE" ]]; then
+    current=$(cat "$THEME_STATE_FILE" | tr -d '[:space:]')
+fi
+
+if [[ "$current" == "$desired" ]]; then
+    exit 0
+fi
+
+if [[ "$desired" == "light" ]]; then
+    exec "$DOTFILES_DIR/system/scripts/light-theme"
+else
+    exec "$DOTFILES_DIR/system/scripts/dark-theme"
+fi

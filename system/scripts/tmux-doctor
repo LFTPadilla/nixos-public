@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ok=0
+warn=0
+fail=0
+
+pass() { printf 'OK    %s\n' "$*"; ok=$((ok + 1)); }
+note() { printf 'WARN  %s\n' "$*"; warn=$((warn + 1)); }
+bad() { printf 'FAIL  %s\n' "$*"; fail=$((fail + 1)); }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+check_cmd() {
+  local cmd="$1"
+  if have "$cmd"; then pass "command: $cmd ($(command -v "$cmd"))"; else bad "missing command: $cmd"; fi
+}
+
+check_optional_cmd() {
+  local cmd="$1"
+  if have "$cmd"; then pass "optional command: $cmd"; else note "optional command missing: $cmd"; fi
+}
+
+check_file() {
+  local path="$1"
+  if [[ -e "$path" ]]; then pass "file exists: $path"; else bad "missing file: $path"; fi
+}
+
+check_executable() {
+  local path="$1"
+  if [[ -x "$path" ]]; then pass "executable: $path"; else bad "not executable/missing: $path"; fi
+}
+
+echo "tmux doctor"
+echo "==========="
+
+check_cmd tmux
+check_cmd tmuxinator
+check_optional_cmd fzf
+check_optional_cmd yazi
+check_optional_cmd btop
+check_optional_cmd k9s
+
+for helper in mux-session tmux-copy tmux-paste tmux-save tmux-restore tmux-git tmux-kube tmux-fzf-switch; do
+  check_executable "$HOME/.local/bin/$helper"
+done
+
+for project in personal work komp; do
+  config="$HOME/.config/tmuxinator/$project.yml"
+  repo_config="$HOME/.dotfiles/export/tmuxinator/$project.yml"
+  if [[ -L "$config" ]]; then
+    target="$(readlink "$config" 2>/dev/null || true)"
+    pass "tmuxinator symlink: $project -> $target"
+  elif [[ -e "$config" ]]; then
+    note "tmuxinator config is not a symlink: $config"
+  else
+    bad "missing tmuxinator config: $config"
+  fi
+
+  check_file "$repo_config"
+  if tmuxinator debug "$project" -n "$project-doctor" --no-attach >/tmp/tmuxinator-"$project".doctor 2>&1; then
+    pass "tmuxinator debug: $project"
+  else
+    bad "tmuxinator debug failed: $project (see /tmp/tmuxinator-$project.doctor)"
+  fi
+done
+
+if tmux has-session 2>/dev/null; then
+  pass "tmux server has sessions: $(tmux list-sessions -F '#{session_name}' 2>/dev/null | tr '\n' ' ')"
+  continuum_restore="$(tmux show-option -gqv @continuum-restore 2>/dev/null || true)"
+  if [[ "$continuum_restore" == "off" ]]; then
+    pass "continuum restore is explicit/manual"
+  else
+    note "continuum restore is '$continuum_restore' in the running server; reload tmux config if this should be off"
+  fi
+else
+  note "no tmux server running"
+fi
+
+if [[ -e "$HOME/.tmux/resurrect/last" ]]; then
+  pass "resurrect snapshot: $(readlink -f "$HOME/.tmux/resurrect/last" 2>/dev/null || printf '%s' "$HOME/.tmux/resurrect/last")"
+else
+  note "no resurrect snapshot at ~/.tmux/resurrect/last"
+fi
+
+if have wl-copy || have xclip || have xsel || have pbcopy; then
+  pass "clipboard copy backend available"
+else
+  note "no system clipboard copy backend; tmux buffer fallback will still work"
+fi
+
+if have wl-paste || have xclip || have xsel || have pbpaste; then
+  pass "clipboard paste backend available"
+else
+  note "no system clipboard paste backend; tmux buffer fallback will still work"
+fi
+
+if have tailscale; then
+  if tailscale status --json >/dev/null 2>&1; then pass "tailscale is running"; else note "tailscale command exists but status failed"; fi
+else
+  note "tailscale not installed"
+fi
+
+kubeconfig="$HOME/.kube/config"
+if have kubectl && [[ -r "$kubeconfig" ]]; then
+  if KUBECONFIG="$kubeconfig" kubectl get namespace blackrack --request-timeout=8s >/dev/null 2>&1; then
+    pass "blackrack namespace reachable via $kubeconfig"
+  else
+    note "blackrack namespace not reachable via $kubeconfig"
+  fi
+else
+  note "kubectl or $kubeconfig unavailable"
+fi
+
+tmux_conf="${XDG_CONFIG_HOME:-$HOME/.config}/tmux/tmux.conf"
+for plugin in sessionx tmux-thumbs tmux-fzf; do
+  if [[ -r "$tmux_conf" ]] && grep -q "$plugin" "$tmux_conf"; then
+    pass "Home Manager tmux plugin configured: $plugin"
+  elif [[ -d "$HOME/.tmux/plugins/$plugin" ]]; then
+    pass "TPM plugin installed: $plugin"
+  else
+    note "tmux plugin not found in Home Manager config or TPM dir: $plugin"
+  fi
+done
+
+echo
+printf 'Summary: %d OK, %d WARN, %d FAIL\n' "$ok" "$warn" "$fail"
+[[ "$fail" -eq 0 ]]

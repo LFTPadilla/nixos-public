@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Capture up to 10000 lines from pane history, join wrapped lines
+if ! HISTORY=$(tmux capture-pane -J -S -10000 -p 2>/dev/null); then
+  tmux display-message "Unable to capture pane history"
+  exit 0
+fi
+
+# Extract URLs, trim common trailing punctuation, dedupe
+URLS=$(printf '%s\n' "$HISTORY" \
+  | grep -Eo 'https?://[^[:space:]]+' \
+  | sed -E 's/[)\]\.,;:!\?"]+$//' \
+  | sort -u)
+
+if [[ -z "${URLS}" ]]; then
+  tmux display-message "No URLs found in scrollback"
+  exit 0
+fi
+
+if ! command -v fzf >/dev/null 2>&1; then
+  tmux display-message "fzf not installed"
+  exit 0
+fi
+
+# Pick one or more URLs
+SELECTION=$(printf '%s\n' "$URLS" | fzf --multi --height 40% --border --prompt='URLs> ' || true)
+if [[ -z "${SELECTION}" ]]; then
+  exit 0
+fi
+
+# Open each selected URL using best available opener
+while IFS= read -r url; do
+  if command -v xdg-open >/dev/null 2>&1; then
+    nohup xdg-open "$url" >/dev/null 2>&1 &
+  elif command -v sensible-browser >/dev/null 2>&1; then
+    nohup sensible-browser "$url" >/dev/null 2>&1 &
+  elif command -v open >/dev/null 2>&1; then
+    nohup open "$url" >/dev/null 2>&1 &
+  else
+    tmux display-message "No URL opener found for: $url"
+  fi
+done <<< "$SELECTION"

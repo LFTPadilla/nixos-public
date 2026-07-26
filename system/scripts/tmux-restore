@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Run via ~/.local/bin/tmux-restore, which exports the resurrect store path.
+if [[ -z "${TMUX_RESURRECT_DIR:-}" ]]; then
+  echo "tmux-restore: TMUX_RESURRECT_DIR unset; run ~/.local/bin/tmux-restore instead." >&2
+  exit 2
+fi
+
+last="$HOME/.tmux/resurrect/last"
+if [[ ! -e "$last" ]]; then
+  echo "No hay snapshot de tmux para restaurar en ~/.tmux/resurrect/last." >&2
+  exit 1
+fi
+
+if ! tmux has-session 2>/dev/null; then
+  tmux new-session -d -s restore-bootstrap
+fi
+
+tmux set-option -gq @resurrect-capture-pane-contents 'on'
+tmux set-option -gq @resurrect-pane-contents-area 'full'
+tmux set-option -gq @resurrect-processes 'ssh mosh-client psql mysql sqlite3 k9s lazygit btop htop yazi ranger lf "~kubectl" "~journalctl" "~nix develop" "~claude" "~codex" "~gemini" "~qwen" "~npm" "~yarn" "~pnpm" "~bun" "~node" "~python"'
+
+tmux run-shell "$TMUX_RESURRECT_DIR/scripts/restore.sh"
+sleep 2
+
+# resurrect es async para sesiones grandes; los agentes se inyectan con poll
+"$HOME/.local/bin/tmux-restore-agents" 2>/dev/null || true
+echo "tmux restaurado desde: $(readlink -f "$last" 2>/dev/null || printf '%s' "$last")"
+tmux list-sessions

@@ -289,7 +289,7 @@
     127.0.0.1 localhost
     255.255.255.255 broadcasthost
     ::1             localhost
-    ${import ../../system/private-hosts.nix}
+    ${(import ../../system/example.private-hosts.nix).extraHosts}
   '';
 
   # Environment variables (system-wide, applies during activation)

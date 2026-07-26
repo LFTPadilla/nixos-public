@@ -2,14 +2,13 @@
 # User-specific packages managed by Home Manager
 with pkgs; [
   # Terminal utilities
-  neofetch
+  # fastfetch: packages/dev-cli.nix
   nnn
 
   # Archives
   zip
   xz
-  unzip
-  p7zip
+  p7zip # unzip: packages/base-cli.nix
 
   # Modern CLI utilities
   eza # A modern replacement for 'ls'
@@ -45,7 +44,7 @@ with pkgs; [
   gnomeExtensions.status-area-horizontal-spacing
   gnomeExtensions.clipboard-indicator
   gnomeExtensions.bluetooth-battery-meter
-  gnomeExtensions.extensions-glass-grid
+  # extensions-glass-grid removed upstream from nixpkgs gnomeExtensions
   gnomeExtensions.bing-wallpaper-changer
   gnomeExtensions.alphabetical-app-grid
   gnomeExtensions.media-controls

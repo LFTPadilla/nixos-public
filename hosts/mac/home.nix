@@ -8,6 +8,7 @@
   pkgs,
   lib,
   inputs,
+  hmStateVersion,
   ...
 }: let
   kittyThemesDir = "${pkgs.kitty-themes}/share/kitty-themes/themes";
@@ -31,22 +32,28 @@
   '';
 in {
   # Import shared shell configuration
+  # session.nix is private-only and excluded from this repository.
   imports = [
     ../../users/felipe/home-modules/shell.nix
+    ../../users/felipe/home-modules/git.nix
   ];
+
+  nixpkgs.config.allowUnfree = true;
 
   home = {
     username = "felipe";
     homeDirectory = "/Users/felipe";
-    stateVersion = "24.05";
+    stateVersion = hmStateVersion;
 
     # macOS-specific packages
     packages = with pkgs; [
       # Development (lightweight for satellite)
       nodejs_22
       python3
+      rustup
       tmuxinator
       lazygit
+      _1password-cli
 
       # CLI tools
       btop # System monitor
@@ -61,6 +68,9 @@ in {
 
       # Editors
       zed-editor
+
+      # Security - lightweight antivirus (company requirement)
+      clamav
     ];
 
     # Add local bin to PATH
@@ -70,8 +80,6 @@ in {
 
     # Environment variables
     sessionVariables = {
-      EDITOR = "nvim";
-      VISUAL = "nvim";
       LANG = "en_US.UTF-8";
       TZ = "America/New_York"; # Fix atuin timestamp issues
       # Homebrew
@@ -161,6 +169,9 @@ in {
 
       # macOS development directory
       dev = "cd ~/Developer";
+
+      # ClamAV - scan home directory (definitions in ~/.clamav)
+      scan = "clamscan --database=$HOME/.clamav -r --bell -i $HOME";
 
       # Aerospace workspace startup
       workspace-start = "~/.dotfiles/system/scripts/workspace-startup";
@@ -277,30 +288,6 @@ in {
       line-numbers-plus-style = "#a6e3a1";
       line-numbers-minus-style = "#f38ba8";
       hunk-header-style = "file line-number syntax";
-    };
-  };
-
-  # Git configuration
-  programs.git = {
-    enable = true;
-    settings = {
-      user = {
-        name = "lftpadilla";
-        email = "felipe.tejada@kommit.co";
-      };
-      init.defaultBranch = "main";
-      pull.rebase = true;
-      push.autoSetupRemote = true;
-      core.editor = "nvim";
-      # Automatically use SSH instead of HTTPS for GitHub
-      url."git@github.com:".insteadOf = "https://github.com/";
-      alias = {
-        lol = "log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%C(bold blue)<%an>%Creset' --abbrev-commit";
-        ci = "commit";
-        co = "checkout";
-        st = "status";
-        br = "branch";
-      };
     };
   };
 
@@ -474,13 +461,7 @@ in {
   home.file.".aerospace.toml".source =
     config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/export/aerospace.toml";
 
-  # Tmuxinator configurations
-  xdg.configFile."tmuxinator/dotfiles.yml".source =
-    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/export/tmuxinator/dotfiles.yml";
-  xdg.configFile."tmuxinator/vault.yml".source =
-    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/export/tmuxinator/vault.yml";
-  xdg.configFile."tmuxinator/work.yml".source =
-    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/export/tmuxinator/work.yml";
+  # Tmuxinator projects are linked by users/felipe/home-modules/shell.nix.
 
   # FZF with Catppuccin colors
   programs.fzf.enable = true;
@@ -538,6 +519,53 @@ in {
     run ${kittyThemeSwitchScript}
   '';
 
+  # Switch macOS appearance based on power source: dark on battery, unchanged on AC
+  launchd.agents.power-theme-watcher = {
+    enable = true;
+    config = {
+      ProgramArguments = [
+        "/bin/sh"
+        "-c"
+        ''
+          ON_BATTERY=$(pmset -g ps | grep -c "Battery Power" || true)
+          DARK_MODE=$(defaults read -g AppleInterfaceStyle 2>/dev/null || echo "Light")
+          if [ "$ON_BATTERY" -gt 0 ] && [ "$DARK_MODE" != "Dark" ]; then
+            osascript -e 'tell app "System Events" to tell appearance preferences to set dark mode to true'
+          fi
+        ''
+      ];
+      StartInterval = 10;
+      RunAtLoad = true;
+      StandardOutPath = "/tmp/power-theme-watcher.log";
+      StandardErrorPath = "/tmp/power-theme-watcher.log";
+    };
+  };
+
+  # Switch to dark mode at 4:30 PM daily
+  launchd.agents.dark-mode-evening = {
+    enable = true;
+    config = {
+      ProgramArguments = [
+        "/bin/sh"
+        "-c"
+        ''
+          DARK_MODE=$(defaults read -g AppleInterfaceStyle 2>/dev/null || echo "Light")
+          if [ "$DARK_MODE" != "Dark" ]; then
+            osascript -e 'tell app "System Events" to tell appearance preferences to set dark mode to true'
+          fi
+        ''
+      ];
+      StartCalendarInterval = [
+        {
+          Hour = 16;
+          Minute = 30;
+        }
+      ];
+      StandardOutPath = "/tmp/dark-mode-evening.log";
+      StandardErrorPath = "/tmp/dark-mode-evening.log";
+    };
+  };
+
   # Watch for macOS appearance changes and update kitty theme automatically
   launchd.agents.kitty-theme-watcher = {
     enable = true;
@@ -547,6 +575,23 @@ in {
       RunAtLoad = true;
       StandardOutPath = "/tmp/kitty-theme-watcher.log";
       StandardErrorPath = "/tmp/kitty-theme-watcher.log";
+    };
+  };
+
+  # ClamAV - daily virus definition update
+  launchd.agents.freshclam = {
+    enable = true;
+    config = {
+      ProgramArguments = ["${pkgs.clamav}/bin/freshclam" "--datadir=${config.home.homeDirectory}/.clamav"];
+      StartCalendarInterval = [
+        {
+          Hour = 3;
+          Minute = 0;
+        }
+      ]; # Daily at 3 AM
+      RunAtLoad = true;
+      StandardOutPath = "/tmp/freshclam.log";
+      StandardErrorPath = "/tmp/freshclam.log";
     };
   };
 
@@ -573,6 +618,9 @@ in {
     enable = true;
     enableZshIntegration = true;
   };
+
+  # macOS-specific git user name override
+  programs.git.settings.user.name = "lftpadilla";
 
   # Karabiner-Elements configuration
   # Managed via export/karabiner.json (symlinked, not copied — editable without rebuild)
